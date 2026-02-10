@@ -1,0 +1,8 @@
+{
+  "name": "Classroom 2.0",
+  "description": "生徒間のコミュニケーションを活性化し、グループ学習を強力にサポートする次世代型スクールSNS。Google Classroomのような使いやすさと、安全なSNS機能を融合しました。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
