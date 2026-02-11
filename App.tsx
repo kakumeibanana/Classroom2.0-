@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -11,7 +10,7 @@ import TodoList from './components/TodoList';
 import NotificationsView from './components/NotificationsView';
 import SettingsView from './components/SettingsView';
 import { MOCK_POSTS, CURRENT_USER, USERS, MOCK_GROUPS, MOCK_SUBJECTS, MOCK_NOTIFICATIONS } from './constants';
-import { Sparkles, Layout, BookOpen, Users, ShieldAlert, Plus, UserPlus, X, ClipboardCheck, Check, Lock, User as UserIcon, Folder, MoreVertical } from 'lucide-react';
+import { Layout, BookOpen, Users, ShieldAlert, Plus, UserPlus, X, ClipboardCheck, Check, Lock, User as UserIcon, Folder, MoreVertical } from 'lucide-react';
 import { Post, ChatGroup, Attachment, User, Notification, SimulationStatus } from './types';
 
 const App: React.FC = () => {
@@ -240,11 +239,11 @@ const App: React.FC = () => {
               >
                 <tab.icon size={16} />
                 {tab.label}
-                {tab.badge && (
+                {tab.badge ? (
                   <span className="ml-1 text-[9px] bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center">
                     {tab.badge}
                   </span>
-                )}
+                ) : null}
               </button>
             ))}
           </div>
@@ -421,13 +420,14 @@ const App: React.FC = () => {
       />
       
       <div className="flex-1 flex overflow-hidden">
-              {[
-              { id: 'stream', label: 'ストリーム', icon: Layout },
-              { id: 'classwork', label: '授業', icon: BookOpen },
-              { id: 'todo', label: 'To-do', icon: ClipboardCheck, show: !isTeacher },
-              { id: 'groups', label: '班別ワーク', icon: Users, badge: subjectGroups.length },
-            ].filter(tab => tab.show !== false).map((tab) => (
-        
+        {/* Sidebarを追加 */}
+        <Sidebar 
+          isOpen={sidebarOpen}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          currentUser={activeUser}
+        />
+
         <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 lg:px-10 no-scrollbar scroll-smooth">
           <div className="max-w-7xl mx-auto">
             {activeTab === 'home' && (
@@ -439,34 +439,39 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {MOCK_SUBJECTS.map(subject => (
                     <div 
-                {tab.badge && (
-                  <span className="ml-1 text-[9px] bg-gray-200 text-gray-700 w-5 h-5 rounded-full flex items-center justify-center font-black">
-                    {tab.badge}
-                  </span>
-                )}
-                        <div className="relative z-10">
-                          <h3 className="text-lg font-black text-gray-900 leading-tight group-hover:underline">{subject.name}</h3>
+                      key={subject.id}
+                      onClick={() => handleNotificationClick(`subject-${subject.id}`)}
+                      className="group relative bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-64"
+                    >
+                        {/* 背景色 */}
+                        <div className="h-24 w-full transition-colors duration-500 relative" style={{ backgroundColor: subject.color || '#1a73e8' }}>
+                          {/* 先生のアイコン */}
+                           <div className="absolute -bottom-8 right-4">
+                            <img 
+                              src={teacher?.avatar} 
+                              className="w-16 h-16 rounded-full border-4 border-white shadow-lg bg-white"
+                              alt="Teacher"
+                            />
+                          </div>
+                        </div>
+
+                        {/* カードの内容 */}
+                        <div className="p-5 pt-10 flex-1">
+                          <h3 className="text-lg font-black text-gray-900 leading-tight group-hover:underline line-clamp-1">{subject.name}</h3>
                           <p className="text-[10px] font-bold text-gray-600 mt-1">{subject.subtitle || '2024年度'}</p>
                           <p className="text-[10px] font-bold text-gray-500 mt-0.5">鈴木先生</p>
                         </div>
-                        {/* Subject Card Teacher Photo - Adjusted positioning for better visibility */}
-                        <div className="absolute top-12 right-4 translate-y-2">
-                          <img 
-                            src={teacher?.avatar} 
-                            className="w-16 h-16 rounded-full border-4 border-white shadow-lg bg-white"
-                            alt="Teacher"
-                          />
+                        
+                        {/* カードのフッターアクション */}
+                        <div className="p-3 border-t border-gray-100 flex items-center justify-end gap-1 mt-auto">
+                          <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"><UserIcon size={20} /></button>
+                          <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"><Folder size={20} /></button>
+                          <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"><MoreVertical size={20} /></button>
                         </div>
-                      </div>
-                      <div className="flex-1 p-5 min-h-[4rem]"></div>
-                      <div className="p-3 border-t border-gray-100 flex items-center justify-end gap-1">
-                        <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"><UserIcon size={20} /></button>
-                        <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"><Folder size={20} /></button>
-                        <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"><MoreVertical size={20} /></button>
-                      </div>
                     </div>
                   ))}
-                  <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center p-8 text-center hover:bg-gray-100 transition-colors cursor-pointer min-h-[16rem]">
+                  
+                  <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center p-8 text-center hover:bg-gray-100 transition-colors cursor-pointer h-64">
                     <Plus size={40} className="text-gray-300 mb-3" />
                     <p className="text-sm font-black text-gray-400 uppercase tracking-widest">新しいクラスに参加</p>
                   </div>
