@@ -63,6 +63,7 @@ export interface Message {
   groupId?: string;
   content: string;
   timestamp: string;
+  isRead?: boolean;
 }
 
 export interface ChatGroup {

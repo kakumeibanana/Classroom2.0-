@@ -18,20 +18,32 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
   const [selectedChat, setSelectedChat] = useState<User | ChatGroup>(MOCK_GROUPS[0]);
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const createConversation = (user: User) => {
+    setSelectedChat(user);
+    setReplyTarget(null);
+    setChatHistories(prev => {
+      const next = { ...prev };
+      next[user.id] = next[user.id] || [];
+      // mark messages as read for this user (messages sent to currentUser)
+      next[user.id] = next[user.id].map(m => m.senderId !== currentUser.id ? { ...m, isRead: true } : m);
+      return next;
+    });
+  };
   
   const [chatHistories, setChatHistories] = useState<Record<string, ChatMessage[]>>({
     'G1': [
-      { id: 'g1_m1', senderId: 'u2', content: '現代文の課題、進んでる？', timestamp: '10:00', groupId: 'G1', reactions: [] },
-      { id: 'g1_m2', senderId: 'u3', content: '半分くらい終わったよ！', timestamp: '10:05', groupId: 'G1', reactions: [{ type: 'check', count: 1, users: ['u2'] }] },
+      { id: 'g1_m1', senderId: 'u2', content: '現代文の課題、進んでる？', timestamp: '10:00', groupId: 'G1', reactions: [], isRead: true },
+      { id: 'g1_m2', senderId: 'u3', content: '半分くらい終わったよ！', timestamp: '10:05', groupId: 'G1', reactions: [{ type: 'check', count: 1, users: ['u2'] }], isRead: true },
     ],
     'u2': [
-      { id: 'dm_u2_1', senderId: 'u2', content: 'Aさん、さっきの授業のノート見せてくれない？', timestamp: '09:30', reactions: [] },
+      { id: 'dm_u2_1', senderId: 'u2', content: 'Aさん、さっきの授業のノート見せてくれない？', timestamp: '09:30', reactions: [], isRead: false },
     ],
     'u3': [
-      { id: 'dm_u3_1', senderId: 'u3', content: '今日の放課後、図書室行く？', timestamp: '08:45', reactions: [] },
+      { id: 'dm_u3_1', senderId: 'u3', content: '今日の放課後、図書室行く？', timestamp: '08:45', reactions: [], isRead: false },
     ],
     'u7': [
-      { id: 'dm_u7_1', senderId: 'u7', content: '提出物の期限について相談がありますか？', timestamp: '昨日', reactions: [] },
+      { id: 'dm_u7_1', senderId: 'u7', content: '提出物の期限について相談がありますか？', timestamp: '昨日', reactions: [], isRead: true },
     ]
   });
 
@@ -49,6 +61,7 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
       groupId: 'members' in selectedChat ? selectedChat.id : undefined,
       receiverId: 'members' in selectedChat ? undefined : selectedChat.id,
       reactions: [],
+      isRead: true,
       replyToId: replyTarget?.id
     };
 
@@ -140,15 +153,16 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
             <div className="px-4 py-3">
               <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">ダイレクトメッセージ</h4>
               <div className="space-y-1">
-                {USERS.filter(u => u.id !== currentUser.id && (chatHistories[u.id] && chatHistories[u.id].length > 0)).filter(user => {
-                  if (!searchQuery) return true;
+                {USERS.filter(u => u.id !== currentUser.id).filter(user => {
+                  const hasMessages = chatHistories[user.id] && chatHistories[user.id].length > 0;
+                  if (!searchQuery) return hasMessages; // when no search, keep previous behavior (hide no-interaction users)
                   const q = searchQuery.toLowerCase();
                   const lastMsg = (chatHistories[user.id] || []).slice(-5).map(m => m.content.toLowerCase()).join(' ');
                   return user.name.toLowerCase().includes(q) || lastMsg.includes(q);
                 }).map(user => (
                   <button 
                     key={user.id}
-                    onClick={() => { setSelectedChat(user); setReplyTarget(null); }}
+                    onClick={() => createConversation(user)}
                     className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${selectedChat.id === user.id ? 'bg-green-50 border-green-100 shadow-inner' : 'hover:bg-gray-50 border-transparent'} border`}
                   >
                     <img src={user.avatar} className="w-10 h-10 rounded-full border border-gray-100 shadow-sm" />
@@ -157,9 +171,17 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
                       <p className="text-[10px] text-gray-500 truncate">
                         {chatHistories[user.id]?.length > 0 
                           ? (chatHistories[user.id][chatHistories[user.id].length - 1].senderId === currentUser.id ? 'あなた: ' : '') + chatHistories[user.id][chatHistories[user.id].length - 1].content 
-                          : '会話を開始しましょう'}
+                          : '会話を開始しましょう（クリックで開始）'}
                       </p>
                     </div>
+                    {/* unread indicator */}
+                    { (chatHistories[user.id] || []).filter(m => !m.isRead && m.senderId !== currentUser.id).length > 0 && (
+                      <div className="ml-2 shrink-0">
+                        <span className="inline-flex items-center justify-center w-5 h-5 bg-blue-500 text-white text-[10px] font-black rounded-full">
+                          {(chatHistories[user.id] || []).filter(m => !m.isRead && m.senderId !== currentUser.id).length}
+                        </span>
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
