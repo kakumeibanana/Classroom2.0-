@@ -9,83 +9,83 @@ import PostComposer from './components/PostComposer';
 import TodoList from './components/TodoList';
 import NotificationsView from './components/NotificationsView';
 import SettingsView from './components/SettingsView';
-import { MOCK_POSTS, CURRENT_USER, USERS, MOCK_GROUPS, MOCK_SUBJECTS, MOCK_NOTIFICATIONS } from './constants';
+import { AppProvider, useAppContext } from './context/AppContext';
+import { MOCK_SUBJECTS, USERS } from './constants';
 import { Layout, BookOpen, Users, ShieldAlert, Plus, UserPlus, X, ClipboardCheck, Check, Lock, User as UserIcon, Folder, MoreVertical } from 'lucide-react';
-import { Post, ChatGroup, Attachment, User, Notification, SimulationStatus } from './types';
+import { Post, ChatGroup, Attachment, Notification, SimulationStatus } from './types';
 
-const App: React.FC = () => {
-  const [activeUser, setActiveUser] = useState<User>(CURRENT_USER);
-  const [activeTab, setActiveTab] = useState('home');
-  const [subjectSubTab, setSubjectSubTab] = useState<'stream' | 'classwork' | 'groups' | 'todo'>('stream');
-  const [selectedGroup, setSelectedGroup] = useState<ChatGroup | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
-  const [groups, setGroups] = useState<ChatGroup[]>(MOCK_GROUPS);
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
-  
+interface AppContentProps {
+  teacher: any;
+}
+
+const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
+  const { state, dispatch } = useAppContext();
+  const { activeUser, activeTab, posts, groups, notifications, selectedGroup } = state;
+  const subjectSubTab = (state as any).subjectSubTab || 'stream';
   const [showGroupCreator, setShowGroupCreator] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-
-  const teacher = USERS.find(u => u.role === 'teacher');
-
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const switchUser = (id?: string) => {
     if (id) {
       const user = USERS.find(u => u.id === id);
       if (user) {
-        setActiveUser(user);
-        setSelectedGroup(null);
+        dispatch({ type: 'SET_ACTIVE_USER', payload: user });
+        dispatch({ type: 'SET_SELECTED_GROUP', payload: null });
       }
       return;
     }
     const currentIndex = USERS.findIndex(u => u.id === activeUser.id);
     const nextIndex = (currentIndex + 1) % USERS.length;
-    setActiveUser(USERS[nextIndex]);
-    setSelectedGroup(null);
+    const nextUser = USERS[nextIndex];
+    if (nextUser) {
+      dispatch({ type: 'SET_ACTIVE_USER', payload: nextUser });
+      dispatch({ type: 'SET_SELECTED_GROUP', payload: null });
+    }
   };
 
   const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    dispatch({ type: 'MARK_NOTIFICATION_READ', payload: id });
   };
 
   const markAllNotificationsAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    dispatch({ type: 'MARK_ALL_NOTIFICATIONS_READ', payload: undefined });
   };
 
   const handleNotificationClick = (link: string) => {
-    setSelectedGroup(null);
+    dispatch({ type: 'SET_SELECTED_GROUP', payload: null });
     if (link === 'chat') {
-      setActiveTab('chat');
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'chat' });
     } else if (link === 'todo') {
-      setActiveTab('todo');
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'todo' });
     } else if (link.startsWith('subject-')) {
       const subjectId = link.split('-')[1];
-      setActiveTab(`subject-${subjectId}`);
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: `subject-${subjectId}` });
       if (notifications.find(n => n.link === link && n.type === 'assignment')) {
-        setSubjectSubTab('classwork');
+        dispatch({ type: 'SET_SUBJECT_SUB_TAB', payload: 'classwork' });
       } else {
-        setSubjectSubTab('stream');
+        dispatch({ type: 'SET_SUBJECT_SUB_TAB', payload: 'stream' });
       }
     }
   };
 
   // ステータスを4段階でサイクルさせるシミュレーション関数
   const cycleSimulationStatus = (postId: string) => {
-    setPosts(prevPosts => prevPosts.map(p => {
-      if (p.id !== postId) return p;
-      const current = p.simulationStatus || 'pending';
-      let next: SimulationStatus;
-      switch (current) {
-        case 'pending': next = 'overdue'; break;
-        case 'overdue': next = 'submitted'; break;
-        case 'submitted': next = 'late'; break;
-        case 'late': next = 'pending'; break;
-        default: next = 'pending';
-      }
-      return { ...p, simulationStatus: next };
-    }));
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    const current = post.simulationStatus || 'pending';
+    let next: SimulationStatus;
+    switch (current) {
+      case 'pending': next = 'overdue'; break;
+      case 'overdue': next = 'submitted'; break;
+      case 'submitted': next = 'late'; break;
+      case 'late': next = 'pending'; break;
+      default: next = 'pending';
+    }
+    dispatch({ type: 'UPDATE_POST', payload: { ...post, simulationStatus: next } });
   };
 
   const handleCreatePost = (postData: Partial<Post>, attachments: Attachment[]) => {
@@ -103,12 +103,11 @@ const App: React.FC = () => {
       comments: [],
       subjectId: activeTab.startsWith('subject-') ? activeTab.split('-')[1] : 's1',
       attachments,
-      simulationStatus: 'pending' // デフォルトは期限内・未提出
+      simulationStatus: 'pending'
     };
-    setPosts([newPost, ...posts]);
+    dispatch({ type: 'ADD_POST', payload: newPost });
     if (newPost.isAssignment) {
-      setSubjectSubTab('classwork');
-      
+      dispatch({ type: 'SET_SUBJECT_SUB_TAB', payload: 'classwork' });
       const newNotification: Notification = {
         id: `n${Date.now()}`,
         type: 'assignment',
@@ -118,26 +117,30 @@ const App: React.FC = () => {
         isRead: false,
         link: activeTab
       };
-      setNotifications([newNotification, ...notifications]);
+      dispatch({ type: 'ADD_NOTIFICATION', payload: newNotification });
     }
   };
 
   const handleAddComment = (postId: string, content: string, parentCommentId?: string) => {
-    setPosts(prev => prev.map(p => {
-      if (p.id !== postId) return p;
-      const newComment = {
-        id: Date.now().toString(),
-        author: activeUser,
-        content,
-        timestamp: '今',
-        replies: []
-      };
-      return { ...p, comments: [...p.comments, newComment] };
-    }));
+    dispatch({ 
+      type: 'ADD_COMMENT', 
+      payload: { 
+        postId, 
+        content, 
+        authorId: activeUser.id,
+        timestamp: '今'
+      } 
+    });
   };
 
   const handleUpdatePost = (postId: string, newContent: string) => {
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, content: newContent } : p));
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      dispatch({ 
+        type: 'UPDATE_POST', 
+        payload: { ...post, content: newContent } 
+      });
+    }
   };
 
   const handleCreateGroup = () => {
@@ -152,7 +155,7 @@ const App: React.FC = () => {
       members: selectedStudentIds, 
       subjectId: subjectId
     };
-    setGroups([...groups, newGroup]);
+    dispatch({ type: 'ADD_GROUP', payload: newGroup });
     
     const newNotif: Notification = {
       id: `n_g_${Date.now()}`,
@@ -163,7 +166,7 @@ const App: React.FC = () => {
       isRead: false,
       link: activeTab
     };
-    setNotifications([newNotif, ...notifications]);
+    dispatch({ type: 'ADD_NOTIFICATION', payload: newNotif });
 
     setNewGroupName('');
     setSelectedStudentIds([]);
@@ -177,8 +180,8 @@ const App: React.FC = () => {
   };
 
   const navigateToPost = (subjectId: string, postId: string) => {
-    setActiveTab(`subject-${subjectId}`);
-    setSubjectSubTab('classwork');
+    dispatch({ type: 'SET_ACTIVE_TAB', payload: `subject-${subjectId}` });
+    dispatch({ type: 'SET_SUBJECT_SUB_TAB', payload: 'classwork' });
   };
 
   const renderSubjectContent = (subjectId: string) => {
@@ -195,7 +198,7 @@ const App: React.FC = () => {
       return (
         <GroupWorkspace 
           group={selectedGroup} 
-          onBack={() => setSelectedGroup(null)} 
+          onBack={() => dispatch({ type: 'SET_SELECTED_GROUP', payload: null })} 
           currentUser={activeUser}
         />
       );
@@ -229,7 +232,7 @@ const App: React.FC = () => {
             ].filter(tab => tab.show !== false).map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setSubjectSubTab(tab.id as any)}
+                onClick={() => dispatch({ type: 'SET_SUBJECT_SUB_TAB', payload: tab.id as any })}
                 className={`
                   flex items-center gap-2 px-6 py-4 text-xs font-black transition-all border-b-2 shrink-0
                   ${subjectSubTab === tab.id 
@@ -240,7 +243,7 @@ const App: React.FC = () => {
                 <tab.icon size={16} />
                 {tab.label}
                 {tab.badge ? (
-                  <span className="ml-1 text-[9px] bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center">
+                  <span className="ml-1 text-[9px] bg-gray-400 text-white w-4 h-4 rounded-full flex items-center justify-center">
                     {tab.badge}
                   </span>
                 ) : null}
@@ -387,7 +390,7 @@ const App: React.FC = () => {
                       <p className="text-xs text-gray-500">メンバー: {group.members.map(id => USERS.find(u => u.id === id)?.name).join(', ')}</p>
                     </div>
                     <button 
-                      onClick={() => setSelectedGroup(group)}
+                      onClick={() => dispatch({ type: 'SET_SELECTED_GROUP', payload: group })}
                       className="mt-6 w-full py-2.5 bg-gray-50 hover:bg-[#1a73e8] hover:text-white text-gray-600 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2"
                     >
                       {isTeacher ? <ShieldAlert size={14} /> : null}
@@ -416,16 +419,15 @@ const App: React.FC = () => {
         currentUser={activeUser} 
         onSwitchToUser={(id: string) => switchUser(id)} 
         notifications={notifications}
-        onShowNotifications={() => { setActiveTab('notifications'); markAllNotificationsAsRead(); }}
+        onShowNotifications={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'notifications' }); markAllNotificationsAsRead(); }}
       />
       
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebarを追加 */}
         <Sidebar 
-          isOpen={sidebarOpen}
           activeTab={activeTab}
-          onTabChange={setActiveTab}
-          currentUser={activeUser}
+          setActiveTab={(tab) => dispatch({ type: 'SET_ACTIVE_TAB', payload: tab })}
+          isOpen={sidebarOpen}
+          isTeacher={activeUser.role === 'teacher'}
         />
 
         <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 lg:px-10 no-scrollbar scroll-smooth">
@@ -508,6 +510,16 @@ const App: React.FC = () => {
         </p>
       </footer>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  const teacher = USERS.find(u => u.role === 'teacher');
+
+  return (
+    <AppProvider>
+      <AppContent teacher={teacher} />
+    </AppProvider>
   );
 };
 

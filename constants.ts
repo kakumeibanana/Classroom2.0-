@@ -104,3 +104,144 @@ export const MOCK_POSTS: Post[] = [
 export const MOCK_GROUPS: ChatGroup[] = [
   { id: 'G1', name: '国語 A班', members: ['u1', 'u2', 'u3'], subjectId: 's1' },
 ];
+
+// ユーザーごとのモックデータ分岐
+export const USER_MOCK_DATA: Record<string, { posts: Post[]; groups: ChatGroup[]; notifications: Notification[] }> = {
+  'u1': { // Aさん
+    posts: [
+      {
+        id: 'p1',
+        subjectId: 's1',
+        isAssignment: true,
+        title: '読書感想文の提出',
+        author: USERS[6],
+        content: '夏目漱石「こころ」を読んで、800字程度でまとめてください。',
+        timestamp: '2024/05/10',
+        deadline: '5月20日',
+        likes: 0,
+        reactions: [],
+        comments: [],
+        attachments: [],
+        simulationStatus: 'pending'
+      },
+      {
+        id: 'p2',
+        subjectId: 's2',
+        isAssignment: true,
+        title: '週末課題：2次関数',
+        author: USERS[6],
+        content: '問題集P.30〜35を解いて提出してください。',
+        timestamp: '2024/05/12',
+        deadline: '5月15日',
+        likes: 0,
+        reactions: [],
+        comments: [],
+        simulationStatus: 'overdue'
+      }
+    ],
+    groups: [
+      { id: 'G1', name: '国語 A班', members: ['u1', 'u2', 'u3'], subjectId: 's1' },
+    ],
+    notifications: [
+      {
+        id: 'n1',
+        type: 'assignment',
+        title: '新しい課題',
+        description: '鈴木先生が「読書感想文」を投稿しました。',
+        timestamp: '5分前',
+        isRead: false,
+        link: 'subject-s1'
+      },
+      {
+        id: 'n2',
+        type: 'message',
+        title: '新着メッセージ',
+        description: 'BさんからDMが届いています。',
+        timestamp: '15分前',
+        isRead: false,
+        link: 'chat'
+      }
+    ]
+  },
+  'u2': { // Bさん
+    posts: [
+      {
+        id: 'p3',
+        subjectId: 's3',
+        isAssignment: true,
+        title: 'English Presentation',
+        author: USERS[6],
+        content: 'Give a 5-minute presentation about your favorite country.',
+        timestamp: '2024/05/11',
+        deadline: '5月25日',
+        likes: 0,
+        reactions: [],
+        comments: [],
+        attachments: [],
+        simulationStatus: 'submitted'
+      }
+    ],
+    groups: [
+      { id: 'G1', name: '国語 A班', members: ['u1', 'u2', 'u3'], subjectId: 's1' },
+    ],
+    notifications: [
+      {
+        id: 'n5',
+        type: 'message',
+        title: 'Aさんからのメッセージ',
+        description: 'さっきの授業のノート見せてくれない？',
+        timestamp: '10分前',
+        isRead: false,
+        link: 'chat'
+      }
+    ]
+  },
+  'u6': { // Fさん
+    posts: [
+      {
+        id: 'p4',
+        subjectId: 's4',
+        isAssignment: true,
+        title: '地理レポート：アジア経済',
+        author: USERS[6],
+        content: 'アジア各国の経済事情について調べてレポートしてください。',
+        timestamp: '2024/05/13',
+        deadline: '5月30日',
+        likes: 0,
+        reactions: [],
+        comments: [],
+        attachments: [],
+        simulationStatus: 'late'
+      }
+    ],
+    groups: [
+      { id: 'G2', name: '英語 B班', members: ['u4', 'u5', 'u6'], subjectId: 's3' },
+    ],
+    notifications: [
+      {
+        id: 'n6',
+        type: 'assignment',
+        title: '新しい課題案内',
+        description: '地理レポートが追加されました。',
+        timestamp: '1時間前',
+        isRead: true,
+        link: 'subject-s4'
+      }
+    ]
+  },
+  'u7': { // 鈴木先生
+    posts: MOCK_POSTS,
+    groups: MOCK_GROUPS,
+    notifications: [
+      {
+        id: 'n7',
+        type: 'message',
+        title: '生徒からの質問',
+        description: 'Aさんから課題について質問が来ています。',
+        timestamp: '20分前',
+        isRead: false,
+        link: 'chat'
+      }
+    ]
+  }
+};
