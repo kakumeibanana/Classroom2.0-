@@ -9,6 +9,7 @@ import GroupWorkspace from './components/GroupWorkspace';
 import PostComposer from './components/PostComposer';
 import TodoList from './components/TodoList';
 import NotificationsView from './components/NotificationsView';
+import SettingsView from './components/SettingsView';
 import { MOCK_POSTS, CURRENT_USER, USERS, MOCK_GROUPS, MOCK_SUBJECTS, MOCK_NOTIFICATIONS } from './constants';
 import { Sparkles, Layout, BookOpen, Users, ShieldAlert, Plus, UserPlus, X, ClipboardCheck, Check, Lock, User as UserIcon, Folder, MoreVertical } from 'lucide-react';
 import { Post, ChatGroup, Attachment, User, Notification, SimulationStatus } from './types';
@@ -31,7 +32,15 @@ const App: React.FC = () => {
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  const switchUser = () => {
+  const switchUser = (id?: string) => {
+    if (id) {
+      const user = USERS.find(u => u.id === id);
+      if (user) {
+        setActiveUser(user);
+        setSelectedGroup(null);
+      }
+      return;
+    }
     const currentIndex = USERS.findIndex(u => u.id === activeUser.id);
     const nextIndex = (currentIndex + 1) % USERS.length;
     setActiveUser(USERS[nextIndex]);
@@ -406,18 +415,18 @@ const App: React.FC = () => {
       <Header 
         onToggleSidebar={toggleSidebar} 
         currentUser={activeUser} 
-        onSwitchUser={switchUser} 
+        onSwitchToUser={(id: string) => switchUser(id)} 
         notifications={notifications}
-        onShowNotifications={() => setActiveTab('notifications')}
+        onShowNotifications={() => { setActiveTab('notifications'); markAllNotificationsAsRead(); }}
       />
       
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar 
-          activeTab={activeTab} 
-          setActiveTab={(tab) => { setActiveTab(tab); setSidebarOpen(false); setSubjectSubTab('stream'); setSelectedGroup(null); }} 
-          isOpen={sidebarOpen}
-          isTeacher={activeUser.role === 'teacher'}
-        />
+              {[
+              { id: 'stream', label: 'ストリーム', icon: Layout },
+              { id: 'classwork', label: '授業', icon: BookOpen },
+              { id: 'todo', label: 'To-do', icon: ClipboardCheck, show: !isTeacher },
+              { id: 'groups', label: '班別ワーク', icon: Users, badge: subjectGroups.length },
+            ].filter(tab => tab.show !== false).map((tab) => (
         
         <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 lg:px-10 no-scrollbar scroll-smooth">
           <div className="max-w-7xl mx-auto">
@@ -430,11 +439,11 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {MOCK_SUBJECTS.map(subject => (
                     <div 
-                      key={subject.id} 
-                      onClick={() => setActiveTab(`subject-${subject.id}`)}
-                      className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer group flex flex-col h-full"
-                    >
-                      <div className="h-28 relative p-5 transition-transform group-hover:scale-[1.02]" style={{ backgroundColor: subject.color }}>
+                {tab.badge && (
+                  <span className="ml-1 text-[9px] bg-gray-200 text-gray-700 w-5 h-5 rounded-full flex items-center justify-center font-black">
+                    {tab.badge}
+                  </span>
+                )}
                         <div className="relative z-10">
                           <h3 className="text-lg font-black text-gray-900 leading-tight group-hover:underline">{subject.name}</h3>
                           <p className="text-[10px] font-bold text-gray-600 mt-1">{subject.subtitle || '2024年度'}</p>
@@ -472,14 +481,15 @@ const App: React.FC = () => {
                 onNotificationClick={handleNotificationClick}
               />
             )}
-            {activeTab === 'todo' && activeUser.role === 'student' && (
+            {activeTab === 'todo' && (
               <TodoList 
-                assignments={posts.filter(p => p.isAssignment)} 
+                assignments={activeUser.role === 'teacher' ? posts.filter(p => p.author.id === activeUser.id) : posts.filter(p => p.isAssignment)} 
                 onViewPost={navigateToPost}
                 onCycleStatus={cycleSimulationStatus}
               />
             )}
             {activeTab === 'chat' && <div className="h-full min-h-[500px]"><Chat currentUser={activeUser} /></div>}
+            {activeTab === 'settings' && <SettingsView currentUser={activeUser} />}
             {activeTab === 'monitor' && <TeacherDashboard />}
             {activeTab.startsWith('subject-') && renderSubjectContent(activeTab.split('-')[1])}
           </div>

@@ -2,11 +2,12 @@
 import React from 'react';
 import { Search, Bell, Menu, RefreshCw, ChevronDown } from 'lucide-react';
 import { User, Notification } from '../types';
+import { USERS } from '../constants';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
   currentUser: User;
-  onSwitchUser: () => void;
+  onSwitchToUser: (id: string) => void;
   notifications: Notification[];
   onShowNotifications: () => void;
 }
@@ -14,12 +15,15 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ 
   onToggleSidebar, 
   currentUser, 
-  onSwitchUser, 
+  onSwitchToUser,
   notifications,
   onShowNotifications
 }) => {
   const isTeacher = currentUser.role === 'teacher';
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  // Only allow Aさん (u1), Fさん (u6), and teacher (u7)
+  const allowedAccounts = USERS.filter(u => ['u1','u6','u7'].includes(u.id));
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b border-gray-200 shadow-sm">
@@ -68,10 +72,11 @@ const Header: React.FC<HeaderProps> = ({
           </button>
           
           {/* アカウント表示 - モバイルでも名前を表示 */}
-          <button 
-            onClick={onSwitchUser}
-            className="flex items-center gap-2 sm:gap-3 pl-2 pr-1 sm:pl-3 sm:pr-2 py-1.5 hover:bg-gray-50 rounded-full transition-all border border-transparent hover:border-gray-200 group"
-          >
+          <div className="relative">
+            <button 
+              onClick={() => setMenuOpen(v => !v)}
+              className="flex items-center gap-2 sm:gap-3 pl-2 pr-1 sm:pl-3 sm:pr-2 py-1.5 hover:bg-gray-50 rounded-full transition-all border border-transparent hover:border-gray-200 group"
+            >
             <div className="flex flex-col items-end">
               <p className="text-[12px] sm:text-sm font-black text-gray-900 leading-tight group-hover:text-[#1a73e8] transition-colors whitespace-nowrap">
                 {currentUser.name}
@@ -93,7 +98,23 @@ const Header: React.FC<HeaderProps> = ({
                 <ChevronDown size={10} className="text-gray-400" />
               </div>
             </div>
-          </button>
+            </button>
+
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-2 z-50">
+                {allowedAccounts.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => { onSwitchToUser(u.id); setMenuOpen(false); }}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3`}
+                  >
+                    <img src={u.avatar} className="w-8 h-8 rounded-full" />
+                    <div className="text-sm font-black truncate">{u.name} <span className="text-xs font-medium text-gray-400">{u.role === 'teacher' ? '（先生）' : ''}</span></div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

@@ -17,6 +17,7 @@ interface ChatMessage extends Message {
 const Chat: React.FC<ChatProps> = ({ currentUser }) => {
   const [selectedChat, setSelectedChat] = useState<User | ChatGroup>(MOCK_GROUPS[0]);
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [chatHistories, setChatHistories] = useState<Record<string, ChatMessage[]>>({
     'G1': [
@@ -100,16 +101,22 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input 
               type="text" 
-              placeholder="メッセージを検索..." 
+              placeholder="相手名またはメッセージを検索..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-gray-50 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-400"
             />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto no-scrollbar">
-          <div className="px-4 py-3">
+            <div className="px-4 py-3">
             <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">グループ</h4>
             <div className="space-y-1">
-              {MOCK_GROUPS.filter(g => currentUser.role === 'teacher' || g.members.includes(currentUser.id)).map(group => (
+              {MOCK_GROUPS.filter(g => currentUser.role === 'teacher' || g.members.includes(currentUser.id)).filter(g => {
+                if (!searchQuery) return true;
+                const q = searchQuery.toLowerCase();
+                return g.name.toLowerCase().includes(q) || (chatHistories[g.id] || []).some(m => m.content.toLowerCase().includes(q));
+              }).map(group => (
                 <button 
                   key={group.id}
                   onClick={() => { setSelectedChat(group); setReplyTarget(null); }}
@@ -130,28 +137,33 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
               ))}
             </div>
           </div>
-          <div className="px-4 py-3">
-            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">ダイレクトメッセージ</h4>
-            <div className="space-y-1">
-              {USERS.filter(u => u.id !== currentUser.id).map(user => (
-                <button 
-                  key={user.id}
-                  onClick={() => { setSelectedChat(user); setReplyTarget(null); }}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${selectedChat.id === user.id ? 'bg-green-50 border-green-100 shadow-inner' : 'hover:bg-gray-50 border-transparent'} border`}
-                >
-                  <img src={user.avatar} className="w-10 h-10 rounded-full border border-gray-100 shadow-sm" />
-                  <div className="flex-1 text-left overflow-hidden">
-                    <p className="text-sm font-black text-gray-900 truncate">{user.name}</p>
-                    <p className="text-[10px] text-gray-500 truncate">
-                      {chatHistories[user.id]?.length > 0 
-                        ? (chatHistories[user.id][chatHistories[user.id].length - 1].senderId === currentUser.id ? 'あなた: ' : '') + chatHistories[user.id][chatHistories[user.id].length - 1].content 
-                        : '会話を開始しましょう'}
-                    </p>
-                  </div>
-                </button>
-              ))}
+            <div className="px-4 py-3">
+              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">ダイレクトメッセージ</h4>
+              <div className="space-y-1">
+                {USERS.filter(u => u.id !== currentUser.id && (chatHistories[u.id] && chatHistories[u.id].length > 0)).filter(user => {
+                  if (!searchQuery) return true;
+                  const q = searchQuery.toLowerCase();
+                  const lastMsg = (chatHistories[user.id] || []).slice(-5).map(m => m.content.toLowerCase()).join(' ');
+                  return user.name.toLowerCase().includes(q) || lastMsg.includes(q);
+                }).map(user => (
+                  <button 
+                    key={user.id}
+                    onClick={() => { setSelectedChat(user); setReplyTarget(null); }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${selectedChat.id === user.id ? 'bg-green-50 border-green-100 shadow-inner' : 'hover:bg-gray-50 border-transparent'} border`}
+                  >
+                    <img src={user.avatar} className="w-10 h-10 rounded-full border border-gray-100 shadow-sm" />
+                    <div className="flex-1 text-left overflow-hidden">
+                      <p className="text-sm font-black text-gray-900 truncate">{user.name}</p>
+                      <p className="text-[10px] text-gray-500 truncate">
+                        {chatHistories[user.id]?.length > 0 
+                          ? (chatHistories[user.id][chatHistories[user.id].length - 1].senderId === currentUser.id ? 'あなた: ' : '') + chatHistories[user.id][chatHistories[user.id].length - 1].content 
+                          : '会話を開始しましょう'}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
         </div>
       </div>
 

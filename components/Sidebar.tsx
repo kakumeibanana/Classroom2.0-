@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, ShieldAlert, MessageCircle, ClipboardCheck, Bell } from 'lucide-react';
+import { Home, ShieldAlert, MessageCircle, ClipboardCheck, Bell, Settings } from 'lucide-react';
 import { MOCK_SUBJECTS, getIconTextColor } from '../constants';
 
 interface SidebarProps {
@@ -27,22 +27,20 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, isTe
             <span className="font-bold text-sm">ホーム</span>
           </button>
           
-          {!isTeacher && (
-            <button
-              onClick={() => setActiveTab('todo')}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-r-full transition-all ${activeTab === 'todo' ? 'bg-blue-50 text-[#1a73e8]' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <ClipboardCheck size={20} />
-              <span className="font-bold text-sm">To-do リスト</span>
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('todo')}
+            className={`w-full flex items-center gap-4 px-4 py-3 rounded-r-full transition-all ${activeTab === 'todo' ? 'bg-blue-50 text-[#1a73e8]' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <ClipboardCheck size={20} />
+            <span className="font-bold text-sm">To-do リスト</span>
+          </button>
 
           <button
             onClick={() => setActiveTab('chat')}
             className={`w-full flex items-center gap-4 px-4 py-3 rounded-r-full transition-all ${activeTab === 'chat' ? 'bg-blue-50 text-[#1a73e8]' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <MessageCircle size={20} />
-            <span className="font-bold text-sm">メッセージ</span>
+            <span className="font-bold text-sm">DM</span>
           </button>
 
           <button
@@ -51,6 +49,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, isTe
           >
             <Bell size={20} />
             <span className="font-bold text-sm">お知らせ</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`w-full flex items-center gap-4 px-4 py-3 rounded-r-full transition-all ${activeTab === 'settings' ? 'bg-blue-50 text-[#1a73e8]' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <Settings size={20} />
+            <span className="font-bold text-sm">設定</span>
           </button>
         </nav>
 
