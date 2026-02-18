@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-import { User, Post, ChatGroup, Notification } from '../types';
+import { User, Post, ChatGroup, Notification, Message } from '../types';
 import { USERS, MOCK_POSTS, MOCK_GROUPS, MOCK_NOTIFICATIONS, USER_MOCK_DATA } from '../constants';
 
 export interface AppState {
@@ -11,6 +11,7 @@ export interface AppState {
   posts: Post[];
   groups: ChatGroup[];
   notifications: Notification[];
+  chatHistories: Record<string, Message[]>;
 }
 
 export type AppAction =
@@ -30,6 +31,8 @@ export type AppAction =
   | { type: 'ADD_NOTIFICATION'; payload: Notification }
   | { type: 'ADD_COMMENT'; payload: { postId: string; comment: any } }
   | { type: 'CYCLE_SIMULATION_STATUS'; payload: string }
+  | { type: 'SET_CHAT_HISTORIES'; payload: Record<string, Message[]> }
+  | { type: 'ADD_MESSAGE'; payload: { fromUserId: string; toUserId: string; message: Message } }
   | { type: 'RESTORE_STATE'; payload: Partial<AppState> };
 
 const initialState: AppState = {
@@ -41,6 +44,7 @@ const initialState: AppState = {
   posts: MOCK_POSTS,
   groups: MOCK_GROUPS,
   notifications: MOCK_NOTIFICATIONS,
+  chatHistories: {},
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -53,6 +57,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         posts: userData?.posts || MOCK_POSTS,
         groups: userData?.groups || MOCK_GROUPS,
         notifications: userData?.notifications || MOCK_NOTIFICATIONS,
+        chatHistories: userData?.chatHistories || {},
         selectedGroup: null,
         activeTab: 'home',
       };
@@ -124,6 +129,18 @@ function appReducer(state: AppState, action: AppAction): AppState {
           }
           return { ...p, simulationStatus: next };
         }),
+      };
+    }
+    case 'SET_CHAT_HISTORIES':
+      return { ...state, chatHistories: action.payload };
+    case 'ADD_MESSAGE': {
+      const { fromUserId, toUserId, message } = action.payload;
+      return {
+        ...state,
+        chatHistories: {
+          ...state.chatHistories,
+          [toUserId]: [...(state.chatHistories[toUserId] || []), message]
+        }
       };
     }
     case 'RESTORE_STATE':

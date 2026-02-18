@@ -1,5 +1,5 @@
 
-import { User, Post, ChatGroup, Subject, Notification } from './types';
+import { User, Post, ChatGroup, Subject, Notification, Message } from './types';
 
 export const USERS: User[] = [
   { id: 'u1', name: 'Aさん', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=A', role: 'student' },
@@ -106,7 +106,7 @@ export const MOCK_GROUPS: ChatGroup[] = [
 ];
 
 // ユーザーごとのモックデータ分岐
-export const USER_MOCK_DATA: Record<string, { posts: Post[]; groups: ChatGroup[]; notifications: Notification[] }> = {
+export const USER_MOCK_DATA: Record<string, { posts: Post[]; groups: ChatGroup[]; notifications: Notification[]; chatHistories: Record<string, Message[]> }> = {
   'u1': { // Aさん
     posts: [
       {
@@ -155,13 +155,24 @@ export const USER_MOCK_DATA: Record<string, { posts: Post[]; groups: ChatGroup[]
       {
         id: 'n2',
         type: 'message',
-        title: '新着メッセージ',
-        description: 'BさんからDMが届いています。',
+        title: '鈴木先生からのメッセージ',
+        description: '提出物の期限について相談がありますか？',
         timestamp: '15分前',
         isRead: false,
         link: 'chat'
       }
-    ]
+    ],
+    chatHistories: {
+      'u2': [
+        { id: 'dm_u1_u2_1', senderId: 'u2', receiverId: 'u1', content: 'Aさん、さっきの授業のノート見せてくれない？', timestamp: '09:30', isRead: false }
+      ],
+      'u3': [
+        { id: 'dm_u1_u3_1', senderId: 'u3', receiverId: 'u1', content: '今日の放課後、図書室行く？', timestamp: '08:45', isRead: false }
+      ],
+      'u7': [
+        { id: 'dm_u1_u7_1', senderId: 'u7', receiverId: 'u1', content: '提出物の期限について相談がありますか？', timestamp: '昨日', isRead: true },
+      ]
+    }
   },
   'u2': { // Bさん
     posts: [
@@ -194,7 +205,18 @@ export const USER_MOCK_DATA: Record<string, { posts: Post[]; groups: ChatGroup[]
         isRead: false,
         link: 'chat'
       }
-    ]
+    ],
+    chatHistories: {
+      'u1': [
+        { id: 'dm_u2_u1_1', senderId: 'u2', receiverId: 'u1', content: 'Aさん、さっきの授業のノート見せてくれない？', timestamp: '09:30', isRead: false }
+      ],
+      'u3': [
+        { id: 'dm_u2_u3_1', senderId: 'u2', receiverId: 'u3', content: 'Cさん、週末の勉強会参加できる？', timestamp: '14:00', isRead: false }
+      ],
+      'u7': [
+        { id: 'dm_u2_u7_1', senderId: 'u2', receiverId: 'u7', content: 'プレゼンテーションの提出期限について質問があります。', timestamp: '昨日 16:30', isRead: true }
+      ]
+    }
   },
   'u6': { // Fさん
     posts: [
@@ -227,7 +249,16 @@ export const USER_MOCK_DATA: Record<string, { posts: Post[]; groups: ChatGroup[]
         isRead: true,
         link: 'subject-s4'
       }
-    ]
+    ],
+    chatHistories: {
+      'u1': [
+        { id: 'dm_u6_u1_1', senderId: 'u1', receiverId: 'u6', content: 'Fさん、週末の勉強会いる？', timestamp: '15:30', isRead: true }
+      ],
+      'u7': [
+        { id: 'dm_u6_u7_1', senderId: 'u7', receiverId: 'u6', content: 'レポート提出について相談しましょう。', timestamp: '昨日 14:00', isRead: true },
+        { id: 'dm_u6_u7_2', senderId: 'u6', receiverId: 'u7', content: 'わかりました。明日の放課後に報告室に寄ります。', timestamp: '昨日 14:15', isRead: true }
+      ]
+    }
   },
   'u7': { // 鈴木先生
     posts: MOCK_POSTS,
@@ -236,12 +267,25 @@ export const USER_MOCK_DATA: Record<string, { posts: Post[]; groups: ChatGroup[]
       {
         id: 'n7',
         type: 'message',
-        title: '生徒からの質問',
-        description: 'Aさんから課題について質問が来ています。',
+        title: 'Aさんからのメッセージ',
+        description: '提出物について相談したいことがあります。',
         timestamp: '20分前',
         isRead: false,
         link: 'chat'
       }
-    ]
+    ],
+    chatHistories: {
+      'u1': [
+        { id: 'dm_u7_u1_1', senderId: 'u7', receiverId: 'u1', content: '提出物の期限について相談がありますか？', timestamp: '昨日', isRead: true }
+      ],
+      'u2': [
+        { id: 'dm_u7_u2_1', senderId: 'u2', receiverId: 'u7', content: 'プレゼンテーションの提出期限について質問があります。', timestamp: '昨日 16:30', isRead: false },
+        { id: 'dm_u7_u2_2', senderId: 'u7', receiverId: 'u2', content: '提出期限は5月25日です。頑張ってください。', timestamp: '昨日 16:45', isRead: false }
+      ],
+      'u6': [
+        { id: 'dm_u7_u6_1', senderId: 'u7', receiverId: 'u6', content: 'レポート提出について相談しましょう。', timestamp: '昨日 14:00', isRead: true },
+        { id: 'dm_u7_u6_2', senderId: 'u6', receiverId: 'u7', content: 'わかりました。明日の放課後に報告室に寄ります。', timestamp: '昨日 14:15', isRead: true }
+      ]
+    }
   }
 };
