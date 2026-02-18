@@ -301,6 +301,25 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
             className="flex-1 py-2 bg-transparent border-none outline-none text-sm resize-none max-h-32 font-bold no-scrollbar"
           />
 
+          <div className="relative">
+            <button
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2 text-gray-400 hover:text-amber-500 transition-colors"
+              title="スタンプを送信"
+            >
+              <Smile size={20} />
+            </button>
+            {showEmojiPicker && (
+              <ReactionPicker
+                onReactionSelect={(emoji) => {
+                  onSendMessage(emoji);
+                  setShowEmojiPicker(false);
+                }}
+                onClose={() => setShowEmojiPicker(false)}
+              />
+            )}
+          </div>
+
           <button
             onClick={handleSend}
             disabled={!inputValue.trim() && attachments.length === 0}

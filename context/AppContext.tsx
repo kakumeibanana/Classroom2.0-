@@ -166,31 +166,33 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const [isDbAvailable, setIsDbAvailable] = useState(false);
 
   // Check if backend is available on mount
   useEffect(() => {
-    healthCheck().then(setIsDbAvailable);
+    const check = async () => {
+      const available = await healthCheck();
+      // Just verify connection, don't need to store it
+      console.log('Backend available:', available);
+    };
+    check();
   }, []);
 
-  // Load user data from API or localStorage
+  // Load user data from API or localStorage when activeUser or isDbAvailable changes
   useEffect(() => {
     const loadUserData = async () => {
-      if (isDbAvailable) {
-        // Try to load from API
-        const apiData = await getUserData(state.activeUser.id);
-        if (apiData) {
-          dispatch({
-            type: 'RESTORE_STATE',
-            payload: {
-              posts: apiData.posts,
-              groups: apiData.groups,
-              notifications: apiData.notifications,
-              chatHistories: apiData.chatHistories
-            }
-          });
-          return;
-        }
+      // Always try API first
+      const apiData = await getUserData(state.activeUser.id);
+      if (apiData) {
+        dispatch({
+          type: 'RESTORE_STATE',
+          payload: {
+            posts: apiData.posts,
+            groups: apiData.groups,
+            notifications: apiData.notifications,
+            chatHistories: apiData.chatHistories
+          }
+        });
+        return;
       }
 
       // Fallback to localStorage
@@ -206,9 +208,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     loadUserData();
-  }, [state.activeUser.id, isDbAvailable]);
+  }, [state.activeUser.id]);
 
-  // Save to API or localStorage
+  // Save to API and localStorage
   useEffect(() => {
     const saveData = async () => {
       const userData = {
@@ -218,10 +220,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         chatHistories: state.chatHistories
       };
 
-      // Save to API if available
-      if (isDbAvailable) {
-        await saveUserData(state.activeUser.id, userData);
-      }
+      // Always try to save to API
+      await saveUserData(state.activeUser.id, userData);
 
       // Always save to localStorage as fallback
       localStorage.setItem(
@@ -231,7 +231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     saveData();
-  }, [state.posts, state.groups, state.notifications, state.chatHistories, state.activeUser.id, isDbAvailable]);
+  }, [state.posts, state.groups, state.notifications, state.chatHistories, state.activeUser.id]);
 
   const setActiveUser = useCallback((user: User) => {
     dispatch({ type: 'SET_ACTIVE_USER', payload: user });
