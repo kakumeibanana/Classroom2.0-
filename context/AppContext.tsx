@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useState } from 'react';
 import { User, Post, ChatGroup, Notification, Message } from '../types';
 import { USERS, MOCK_POSTS, MOCK_GROUPS, MOCK_NOTIFICATIONS, USER_MOCK_DATA } from '../constants';
+import { getUserData, saveUserData, healthCheck } from '../src/api/client';
 
 export interface AppState {
   activeUser: User;
@@ -165,31 +166,72 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const [isDbAvailable, setIsDbAvailable] = useState(false);
 
-  // ローカルストレージから復元
+  // Check if backend is available on mount
   useEffect(() => {
-    const saved = localStorage.getItem(`classroom-state-${state.activeUser.id}`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        dispatch({ type: 'RESTORE_STATE', payload: parsed });
-      } catch (e) {
-        console.error('Failed to restore state:', e);
+    healthCheck().then(setIsDbAvailable);
+  }, []);
+
+  // Load user data from API or localStorage
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (isDbAvailable) {
+        // Try to load from API
+        const apiData = await getUserData(state.activeUser.id);
+        if (apiData) {
+          dispatch({
+            type: 'RESTORE_STATE',
+            payload: {
+              posts: apiData.posts,
+              groups: apiData.groups,
+              notifications: apiData.notifications,
+              chatHistories: apiData.chatHistories
+            }
+          });
+          return;
+        }
       }
-    }
-  }, [state.activeUser.id]);
 
-  // ローカルストレージに保存
+      // Fallback to localStorage
+      const saved = localStorage.getItem(`classroom-state-${state.activeUser.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          dispatch({ type: 'RESTORE_STATE', payload: parsed });
+        } catch (e) {
+          console.error('Failed to restore state:', e);
+        }
+      }
+    };
+
+    loadUserData();
+  }, [state.activeUser.id, isDbAvailable]);
+
+  // Save to API or localStorage
   useEffect(() => {
-    localStorage.setItem(
-      `classroom-state-${state.activeUser.id}`,
-      JSON.stringify({
+    const saveData = async () => {
+      const userData = {
         posts: state.posts,
-        notifications: state.notifications,
         groups: state.groups,
-      })
-    );
-  }, [state.posts, state.notifications, state.groups, state.activeUser.id]);
+        notifications: state.notifications,
+        chatHistories: state.chatHistories
+      };
+
+      // Save to API if available
+      if (isDbAvailable) {
+        await saveUserData(state.activeUser.id, userData);
+      }
+
+      // Always save to localStorage as fallback
+      localStorage.setItem(
+        `classroom-state-${state.activeUser.id}`,
+        JSON.stringify(userData)
+      );
+    };
+
+    saveData();
+  }, [state.posts, state.groups, state.notifications, state.chatHistories, state.activeUser.id, isDbAvailable]);
 
   const setActiveUser = useCallback((user: User) => {
     dispatch({ type: 'SET_ACTIVE_USER', payload: user });
