@@ -4,6 +4,8 @@ import { open } from 'sqlite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
+import multer from 'multer';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,9 +13,32 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3001;
 
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Setup multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(uploadsDir));
 
 // Database setup
 let db;
@@ -282,6 +307,28 @@ app.patch('/api/notifications/:notificationId/read', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating notification read status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// File upload
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const fileInfo = {
+      id: Date.now().toString(),
+      name: req.file.originalname,
+      url: `/uploads/${req.file.filename}`,
+      type: req.file.mimetype,
+      size: req.file.size
+    };
+
+    res.json(fileInfo);
+  } catch (error) {
+    console.error('Error uploading file:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -5,6 +5,7 @@ import { Message, User, ChatGroup } from '../types';
 import { useAppContext } from '../context/AppContext';
 import ChatList from './ChatList';
 import MessageArea from './MessageArea';
+import { createMessage, createNotification, addReaction } from '../src/api/client';
 
 interface ChatProps {
   currentUser: User;
@@ -37,9 +38,10 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
     }
   };
 
-  const handleSendMessage = (content: string) => {
-    if (!selectedChat || !content.trim()) return;
+  const handleSendMessage = async (content: string, attachments?: any[]) => {
+    if (!selectedChat || (!content.trim() && (!attachments || attachments.length === 0))) return;
 
+    const isGroup = 'members' in selectedChat;
     const newMessage: Message = {
       id: Date.now().toString(),
       senderId: currentUser.id,
@@ -47,9 +49,12 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isRead: true,
       ...(replyTarget && { replyToId: replyTarget.id }),
-      ...(!('members' in selectedChat) && { receiverId: selectedChat.id })
+      ...(!isGroup && { receiverId: selectedChat.id }),
+      ...(isGroup && { groupId: selectedChat.id }),
+      ...(attachments && attachments.length > 0 && { attachments })
     };
 
+    // Save to local state immediately for UI responsiveness
     dispatch({
       type: 'ADD_MESSAGE',
       payload: {
@@ -59,10 +64,42 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
       }
     });
 
+    // Send to API
+    const messageCopy = { ...newMessage };
+    await createMessage(messageCopy);
+
+    // Create notification if it's a DM
+    if (!isGroup) {
+      const notification: any = {
+        userId: selectedChat.id,
+        type: 'message',
+        title: `${currentUser.name}からメッセージです`,
+        description: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+        timestamp: new Date().toLocaleString(),
+        isRead: false,
+        link: `/messages/${currentUser.id}`
+      };
+      await createNotification(notification);
+
+      // Update local notifications
+      dispatch({
+        type: 'ADD_NOTIFICATION',
+        payload: {
+          id: Date.now().toString(),
+          type: 'message',
+          title: `${currentUser.name}からメッセージです`,
+          description: content.substring(0, 50),
+          timestamp: new Date().toLocaleTimeString(),
+          isRead: false,
+          link: `/messages/${currentUser.id}`
+        }
+      });
+    }
+
     setReplyTarget(null);
   };
 
-  const handleReaction = (msgId: string, type: string) => {
+  const handleReaction = async (msgId: string, type: string) => {
     if (!selectedChat) return;
 
     const messages = chatHistories[selectedChat.id] || [];
@@ -97,6 +134,9 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
       type: 'SET_CHAT_HISTORIES',
       payload: { ...chatHistories, [selectedChat.id]: updatedMessages }
     });
+
+    // Save to API
+    await addReaction(msgId, type, currentUser.id);
   };
 
   return (

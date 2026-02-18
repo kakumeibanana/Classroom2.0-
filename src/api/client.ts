@@ -16,6 +16,8 @@ export interface ApiMessage {
   content: string;
   timestamp: string;
   isRead?: boolean;
+  reactions?: { type: string; count: number; users: string[] }[];
+  attachments?: { id: string; name: string; url: string; type: string; size: number }[];
   replyToId?: string;
 }
 
@@ -152,5 +154,24 @@ export async function healthCheck(): Promise<boolean> {
   } catch (error) {
     console.warn('Backend server not available');
     return false;
+  }
+}
+
+// File upload
+export async function uploadFile(file: File): Promise<{ id: string; name: string; url: string; type: string; size: number } | null> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) return null;
+    return response.json();
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    return null;
   }
 }

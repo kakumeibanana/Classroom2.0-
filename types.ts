@@ -64,6 +64,9 @@ export interface Message {
   content: string;
   timestamp: string;
   isRead?: boolean;
+  reactions?: { type: string; count: number; users: string[] }[];
+  attachments?: { id: string; name: string; url: string; type: string; size: number }[];
+  replyToId?: string;
 }
 
 export interface ChatGroup {

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Send, Phone, Video, Info, Paperclip, Smile, Reply, Heart, ThumbsUp, Check, X, User as UserIcon, Users } from 'lucide-react';
+import { Send, Phone, Video, Info, Paperclip, Smile, Reply, Heart, ThumbsUp, Check, X, User as UserIcon, Users, Loader } from 'lucide-react';
 import { User, ChatGroup } from '../types';
 import { USERS } from '../constants';
+import ReactionPicker from './ReactionPicker';
+import { uploadFile } from '../src/api/client';
 
 interface ChatMessage {
   id: string;
@@ -13,13 +15,14 @@ interface ChatMessage {
   replyToId?: string;
   groupId?: string;
   receiverId?: string;
+  attachments?: { id: string; name: string; url: string; type: string; size: number }[];
 }
 
 interface MessageAreaProps {
   selectedChat: User | ChatGroup;
   activeMessages: ChatMessage[];
   currentUser: User;
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, attachments?: any[]) => void;
   onReaction: (msgId: string, type: string) => void;
   onReplySelect: (msg: ChatMessage) => void;
   onReplyClear: () => void;
@@ -37,13 +40,45 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
   replyTarget,
 }) => {
   const [inputValue, setInputValue] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const isGroup = 'members' in selectedChat;
   const getUser = (id: string) => USERS.find(u => u.id === id);
 
   const handleSend = () => {
-    if (inputValue.trim()) {
-      onSendMessage(inputValue);
+    if (inputValue.trim() || attachments.length > 0) {
+      onSendMessage(inputValue, attachments.length > 0 ? attachments : undefined);
       setInputValue('');
+      setAttachments([]);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    setIsUploading(true);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const result = await uploadFile(file);
+      if (result) {
+        setAttachments(prev => [...prev, result]);
+      }
+    }
+    setIsUploading(false);
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    if (selectedMessage) {
+      onReaction(selectedMessage, emoji);
+      setSelectedMessage(null);
+      setShowEmojiPicker(false);
     }
   };
 
@@ -66,7 +101,7 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
             </>
           ) : (
             <>
-              <img src={selectedChat.avatar} className="w-10 h-10 rounded-full border border-gray-200 shadow-sm" />
+              <img src={selectedChat.avatar} className="w-10 h-10 rounded-full border border-gray-200 shadow-sm" alt={selectedChat.name} />
               <div>
                 <h3 className="font-black text-gray-900">{selectedChat.name}</h3>
                 <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
@@ -99,8 +134,12 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
 
             return (
               <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'} group animate-in slide-in-from-bottom-2 duration-300`}>
-                {!isMe && <img src={sender?.avatar} className="w-8 h-8 rounded-full mb-1 border border-gray-200 shadow-sm" />}
-                <div className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col relative`}>
+                {!isMe && <img src={sender?.avatar} className="w-8 h-8 rounded-full mb-1 border border-gray-200 shadow-sm" alt={sender?.name} />}
+                <div
+                  className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col relative`}
+                  onMouseEnter={() => setSelectedMessage(msg.id)}
+                  onMouseLeave={() => setSelectedMessage(null)}
+                >
                   {repliedTo && (
                     <div className="text-[10px] px-3 py-1 bg-gray-200/50 text-gray-500 rounded-t-xl border-l-4 border-blue-400 mb-[-1px] max-w-full truncate">
                       <span className="font-black mr-1">{getUser(repliedTo.senderId)?.name}:</span>
@@ -113,7 +152,24 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
                       isMe ? 'bg-[#1a73e8] text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'
                     }`}
                   >
-                    {msg.content}
+                    <p>{msg.content}</p>
+
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="mt-2 space-y-1 border-t pt-2">
+                        {msg.attachments.map(att => (
+                          <a
+                            key={att.id}
+                            href={att.url}
+                            download={att.name}
+                            className={`block text-[10px] font-black px-2 py-1 rounded border ${
+                              isMe ? 'bg-blue-600 text-blue-100 border-blue-500 hover:bg-blue-700' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                            } transition-colors truncate`}
+                          >
+                            📎 {att.name} ({Math.round(att.size / 1024)}KB)
+                          </a>
+                        ))}
+                      </div>
+                    )}
 
                     {msg.reactions && msg.reactions.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2 -mb-1">
@@ -121,40 +177,44 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
                           <button
                             key={r.type}
                             onClick={() => onReaction(msg.id, r.type)}
-                            className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-black border transition-all ${
+                            className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-black border transition-all ${
                               r.users.includes(currentUser.id) ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-gray-50 border-gray-100 text-gray-400'
                             }`}
                           >
-                            {r.type === 'heart' && <Heart size={10} fill={r.users.includes(currentUser.id) ? 'currentColor' : 'none'} />}
-                            {r.type === 'thumbsup' && <ThumbsUp size={10} />}
-                            {r.type === 'check' && <Check size={10} />}
-                            {r.count}
+                            <span>{r.type}</span>
+                            <span>{r.count}</span>
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  <div className={`absolute top-0 flex gap-1 transition-opacity opacity-0 group-hover:opacity-100 ${isMe ? 'right-full mr-2' : 'left-full ml-2'}`}>
-                    <button
-                      onClick={() => onReplySelect(msg)}
-                      className="p-1.5 bg-white border border-gray-100 rounded-full shadow-sm text-gray-400 hover:text-blue-500 hover:scale-110 transition-all"
-                    >
-                      <Reply size={14} />
-                    </button>
-                    <button
-                      onClick={() => onReaction(msg.id, 'heart')}
-                      className="p-1.5 bg-white border border-gray-100 rounded-full shadow-sm text-gray-400 hover:text-pink-500 hover:scale-110 transition-all"
-                    >
-                      <Heart size={14} />
-                    </button>
-                    <button
-                      onClick={() => onReaction(msg.id, 'thumbsup')}
-                      className="p-1.5 bg-white border border-gray-100 rounded-full shadow-sm text-gray-400 hover:text-amber-500 hover:scale-110 transition-all"
-                    >
-                      <ThumbsUp size={14} />
-                    </button>
-                  </div>
+                  {selectedMessage === msg.id && (
+                    <div className={`absolute top-0 flex gap-1 transition-opacity opacity-100 ${isMe ? 'right-full mr-2' : 'left-full ml-2'}`}>
+                      <button
+                        onClick={() => onReplySelect(msg)}
+                        className="p-1.5 bg-white border border-gray-100 rounded-full shadow-sm text-gray-400 hover:text-blue-500 hover:scale-110 transition-all"
+                        title="リプライ"
+                      >
+                        <Reply size={14} />
+                      </button>
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          className="p-1.5 bg-white border border-gray-100 rounded-full shadow-sm text-gray-400 hover:text-amber-500 hover:scale-110 transition-all"
+                          title="スタンプ"
+                        >
+                          <Smile size={14} />
+                        </button>
+                        {showEmojiPicker && (
+                          <ReactionPicker
+                            onReactionSelect={handleEmojiSelect}
+                            onClose={() => setShowEmojiPicker(false)}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <p className={`text-[8px] text-gray-400 mt-1 font-bold ${isMe ? 'text-right' : 'text-left'}`}>{msg.timestamp}</p>
                 </div>
@@ -167,6 +227,7 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
               <Smile size={32} className="text-gray-200" />
             </div>
             <p className="text-xs font-black text-gray-400 uppercase tracking-widest">会話はまだありません</p>
+            <p className="text-[10px] text-gray-300 mt-1">メッセージを送信して会話を始めましょう</p>
           </div>
         )}
       </div>
@@ -183,10 +244,49 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
             </button>
           </div>
         )}
+
+        {attachments.length > 0 && (
+          <div className="mb-2 p-2 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
+            <div className="flex flex-wrap gap-2">
+              {attachments.map(att => (
+                <div key={att.id} className="bg-white border border-green-200 rounded px-2 py-1 flex items-center gap-2 text-[10px] font-bold">
+                  <span>📎 {att.name}</span>
+                  <button
+                    onClick={() => removeAttachment(att.id)}
+                    className="text-green-400 hover:text-green-600"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-end gap-2 bg-gray-50 rounded-2xl p-2 px-3 border border-gray-200 focus-within:ring-2 focus-within:ring-blue-100 focus-within:bg-white transition-all">
-          <button className="p-2 text-gray-400 hover:text-[#1a73e8] transition-colors">
-            <Paperclip size={20} />
-          </button>
+          <div className="relative">
+            <input
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              disabled={isUploading}
+              className="hidden"
+              id="file-input"
+              accept="*/*"
+            />
+            <label htmlFor="file-input">
+              <button
+                as="button"
+                onClick={() => document.getElementById('file-input')?.click()}
+                disabled={isUploading}
+                className="p-2 text-gray-400 hover:text-[#1a73e8] transition-colors disabled:opacity-50 cursor-pointer"
+                title="ファイルを添付"
+              >
+                {isUploading ? <Loader size={20} className="animate-spin" /> : <Paperclip size={20} />}
+              </button>
+            </label>
+          </div>
+
           <textarea
             rows={1}
             value={inputValue}
@@ -200,12 +300,14 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
             placeholder={`${selectedChat.name}さんにメッセージ...`}
             className="flex-1 py-2 bg-transparent border-none outline-none text-sm resize-none max-h-32 font-bold no-scrollbar"
           />
-          <button className="p-2 text-gray-400 hover:text-amber-500 transition-colors">
-            <Smile size={20} />
-          </button>
+
           <button
             onClick={handleSend}
-            className={`p-2 rounded-xl transition-all ${inputValue.trim() ? 'bg-[#1a73e8] text-white shadow-lg shadow-blue-200' : 'text-gray-300'}`}
+            disabled={!inputValue.trim() && attachments.length === 0}
+            className={`p-2 rounded-xl transition-all ${
+              inputValue.trim() || attachments.length > 0 ? 'bg-[#1a73e8] text-white shadow-lg shadow-blue-200' : 'text-gray-300'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            title="送信"
           >
             <Send size={20} />
           </button>
