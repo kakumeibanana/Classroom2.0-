@@ -126,17 +126,40 @@ app.get('/api/user/:userId', async (req, res) => {
     const { userId } = req.params;
     const userData = await db.get('SELECT * FROM user_data WHERE userId = ?', [userId]);
     
-    if (userData) {
-      return res.json({
-        userId,
-        posts: JSON.parse(userData.postsJson || '[]'),
-        groups: JSON.parse(userData.groupsJson || '[]'),
-        notifications: JSON.parse(userData.notificationsJson || '[]'),
-        chatHistories: JSON.parse(userData.chatHistoriesJson || '{}')
-      });
+    // Build chat histories from chat_messages table
+    const messages = await db.all(
+      `SELECT * FROM chat_messages WHERE senderId = ? OR receiverId = ? ORDER BY timestamp ASC`,
+      [userId, userId]
+    );
+
+    const chatHistories = {};
+    for (const msg of messages || []) {
+      const chatKey = msg.senderId === userId ? msg.receiverId : msg.senderId;
+      if (chatKey) {
+        if (!chatHistories[chatKey]) {
+          chatHistories[chatKey] = [];
+        }
+        chatHistories[chatKey].push({
+          id: msg.id,
+          senderId: msg.senderId,
+          receiverId: msg.receiverId,
+          groupId: msg.groupId,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          isRead: msg.isRead ? true : false,
+          replyToId: msg.replyToId,
+          reactions: [] // TODO: fetch from message_reactions table
+        });
+      }
     }
-    
-    res.status(404).json({ error: 'User data not found' });
+
+    return res.json({
+      userId,
+      posts: userData ? JSON.parse(userData.postsJson || '[]') : [],
+      groups: userData ? JSON.parse(userData.groupsJson || '[]') : [],
+      notifications: userData ? JSON.parse(userData.notificationsJson || '[]') : [],
+      chatHistories
+    });
   } catch (error) {
     console.error('Error fetching user data:', error);
     res.status(500).json({ error: error.message });
