@@ -38,7 +38,7 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
     }
   };
 
-  const handleSendMessage = async (content: string, attachments?: any[]) => {
+  const handleSendMessage = (content: string, attachments?: any[]) => {
     if (!selectedChat || (!content.trim() && (!attachments || attachments.length === 0))) return;
 
     const isGroup = 'members' in selectedChat;
@@ -64,42 +64,35 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
       }
     });
 
-    // Send to API
-    const messageCopy = { ...newMessage };
-    await createMessage(messageCopy);
+    setReplyTarget(null);
 
-    // Create notification if it's a DM
-    if (!isGroup) {
-      const notification: any = {
-        userId: selectedChat.id,
-        type: 'message',
-        title: `${currentUser.name}からメッセージです`,
-        description: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
-        timestamp: new Date().toLocaleString(),
-        isRead: false,
-        link: `/messages/${currentUser.id}`
-      };
-      await createNotification(notification);
+    // Send to API and create notification (non-blocking)
+    const sendAsync = async () => {
+      const messageCopy = { ...newMessage };
+      await createMessage(messageCopy);
 
-      // Update local notifications
-      dispatch({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: Date.now().toString(),
+      // Create notification for the receiver (not for sender)
+      if (!isGroup) {
+        const notification: any = {
+          userId: selectedChat.id, // Receiver ID
           type: 'message',
           title: `${currentUser.name}からメッセージです`,
-          description: content.substring(0, 50),
-          timestamp: new Date().toLocaleTimeString(),
+          description: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+          timestamp: new Date().toLocaleString(),
           isRead: false,
           link: `/messages/${currentUser.id}`
-        }
-      });
-    }
+        };
+        await createNotification(notification);
+        
+        // Don't add to current user's notifications - only receiver should get it
+        // Notification will be added when receiver loads their data from API
+      }
+    };
 
-    setReplyTarget(null);
+    sendAsync();
   };
 
-  const handleReaction = async (msgId: string, type: string) => {
+  const handleReaction = (msgId: string, type: string) => {
     if (!selectedChat) return;
 
     const messages = chatHistories[selectedChat.id] || [];
@@ -135,8 +128,8 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
       payload: { ...chatHistories, [selectedChat.id]: updatedMessages }
     });
 
-    // Save to API
-    await addReaction(msgId, type, currentUser.id);
+    // Save to API (non-blocking)
+    addReaction(msgId, type, currentUser.id);
   };
 
   return (
