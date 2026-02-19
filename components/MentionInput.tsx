@@ -6,11 +6,12 @@ import { User } from '../types';
 interface MentionInputProps {
   placeholder: string;
   onSend: (content: string) => void;
+  onChange?: (value: string) => void;
+  value?: string;
   className?: string;
 }
 
-const MentionInput: React.FC<MentionInputProps> = ({ placeholder, onSend, className }) => {
-  const [value, setValue] = useState('');
+const MentionInput: React.FC<MentionInputProps> = ({ placeholder, onSend, onChange, value = '', className }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const [cursorPos, setCursorPos] = useState(0);
@@ -18,7 +19,7 @@ const MentionInput: React.FC<MentionInputProps> = ({ placeholder, onSend, classN
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    setValue(val);
+    onChange?.(val);
     const pos = e.target.selectionStart || 0;
     setCursorPos(pos);
 
@@ -38,7 +39,7 @@ const MentionInput: React.FC<MentionInputProps> = ({ placeholder, onSend, classN
   const handleSelectUser = (user: User) => {
     const lastAtPos = value.lastIndexOf('@', cursorPos - 1);
     const newValue = value.slice(0, lastAtPos) + `@${user.name} ` + value.slice(cursorPos);
-    setValue(newValue);
+    onChange?.(newValue);
     setShowSuggestions(false);
     inputRef.current?.focus();
   };
@@ -53,7 +54,6 @@ const MentionInput: React.FC<MentionInputProps> = ({ placeholder, onSend, classN
         onKeyDown={(e) => {
           if (e.key === 'Enter' && value.trim()) {
             onSend(value);
-            setValue('');
           }
         }}
         placeholder={placeholder}

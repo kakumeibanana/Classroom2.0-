@@ -18,6 +18,7 @@ const PostComposer: React.FC<PostComposerProps> = ({ currentUser, onPost, placeh
   const [isGroupAssignment, setIsGroupAssignment] = useState(false);
   const [title, setTitle] = useState('');
   const [deadline, setDeadline] = useState('');
+  const [content, setContent] = useState('');
   const isTeacher = currentUser.role === 'teacher';
 
   const handleAttach = (file: Attachment) => {
@@ -47,6 +48,7 @@ const PostComposer: React.FC<PostComposerProps> = ({ currentUser, onPost, placeh
     setDeadline('');
     setIsAssignmentMode(false);
     setIsGroupAssignment(false);
+    setContent('');
   };
 
   return (
@@ -119,6 +121,8 @@ const PostComposer: React.FC<PostComposerProps> = ({ currentUser, onPost, placeh
         <MentionInput 
           placeholder={isAssignmentMode ? "課題の詳細や指示を入力..." : (placeholder || "メッセージを入力... (@でメンション)")} 
           onSend={handleSend}
+          value={content}
+          onChange={setContent}
         />
       </div>
       
@@ -128,9 +132,13 @@ const PostComposer: React.FC<PostComposerProps> = ({ currentUser, onPost, placeh
           onAttach={handleAttach} 
           onRemove={handleRemove} 
         />
-        <div className="text-[9px] font-black text-gray-300 uppercase tracking-widest hidden sm:block">
-          Press Enter to Post
-        </div>
+        <button
+          onClick={() => handleSend(content)}
+          disabled={!content.trim()}
+          className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-full hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        >
+          投稿
+        </button>
       </div>
     </div>
   );
