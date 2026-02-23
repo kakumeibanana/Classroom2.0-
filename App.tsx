@@ -331,37 +331,38 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
           )}
 
           {subjectSubTab === 'classwork' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto animate-in fade-in duration-300">
+            <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-300">
               {subjectAssignments.map(post => (
-                <div key={post.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-bold text-sm text-gray-900 line-clamp-2">{post.title || post.content}</h3>
-                  </div>
-                  <p className="text-xs text-gray-600 line-clamp-2 mb-3">{post.content}</p>
-                  {post.deadline && (
-                    <div className="text-xs text-red-500 font-medium mb-2">期限: {post.deadline}</div>
-                  )}
-                  <button 
-                    onClick={() => {
-                      dispatch({ type: 'SET_SELECTED_POST', payload: post });
-                      dispatch({ type: 'SET_MAIN_VIEW', payload: 'post-detail' });
-                    }}
-                    className="w-full px-3 py-1.5 text-xs font-semibold bg-blue-50 text-[#1a73e8] rounded-lg hover:bg-blue-100 transition-colors"
-                  >
-                    詳細を見る
-                  </button>
-                </div>
+                <PostCard 
+                  key={post.id} 
+                  post={post} 
+                  onUpdatePost={handleUpdatePost} 
+                  onAddComment={handleAddComment}
+                  onCycleStatus={() => cycleSimulationStatus(post.id)}
+                />
               ))}
             </div>
           )}
 
           {subjectSubTab === 'todo' && !isTeacher && (
-             <TodoList 
-                assignments={subjectAssignments} 
-                onViewPost={navigateToPost}
-                onCycleStatus={cycleSimulationStatus}
-                title={`${subject?.name} の To-do`}
-             />
+            <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-300">
+              {subjectAssignments.length > 0 ? (
+                subjectAssignments.map(post => (
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                    onUpdatePost={handleUpdatePost} 
+                    onAddComment={handleAddComment}
+                    onCycleStatus={() => cycleSimulationStatus(post.id)}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-gray-400 text-lg font-semibold">課題がありません</div>
+                  <p className="text-gray-500 text-sm mt-2">新しい課題が追加されるのをお待ちください</p>
+                </div>
+              )}
+            </div>
           )}
 
           {subjectSubTab === 'groups' && (
