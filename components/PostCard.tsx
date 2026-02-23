@@ -51,12 +51,19 @@ const PostCard: React.FC<PostCardProps> = ({ post, onUpdatePost, onDeletePost, o
 
   // Resolve author from USERS if post.author is undefined (when loaded from API)
   const author = post.author || USERS.find(u => u.id === (post as any).authorId);
-  const displayPost = { ...post, author: author || { id: '', name: 'Unknown', avatar: '', role: 'student' as const } };
+  const displayPost = { 
+    ...post, 
+    author: author || { id: '', name: 'Unknown', avatar: '', role: 'student' as const },
+    comments: post.comments || [],
+    attachments: post.attachments || [],
+    reactions: post.reactions || [],
+    likes: post.likes || 0
+  };
 
   const renderAttachments = () => (
-    post.attachments && post.attachments.length > 0 && (
+    displayPost.attachments && displayPost.attachments.length > 0 && (
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {post.attachments.map((att) => (
+        {displayPost.attachments.map((att) => (
           <div key={att.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 cursor-pointer group transition-all shadow-sm bg-white">
             <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-white transition-colors">
               <AttachmentIcon type={att.type} />
@@ -103,21 +110,21 @@ const PostCard: React.FC<PostCardProps> = ({ post, onUpdatePost, onDeletePost, o
                 className={`flex items-center gap-1.5 text-xs font-black transition-colors ${liked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-400'}`}
               >
                 <Heart size={16} fill={liked ? "currentColor" : "none"} />
-                {liked ? post.likes + 1 : post.likes}
+                {liked ? displayPost.likes + 1 : displayPost.likes}
               </button>
               <button 
                 onClick={() => setShowComments(!showComments)}
                 className="flex items-center gap-1.5 text-xs font-black text-gray-400 hover:text-blue-600 transition-colors"
               >
                 <MessageCircle size={16} />
-                コメント {post.comments.length}
+                コメント {displayPost.comments.length}
               </button>
             </div>
 
             {showComments && (
               <div className="mt-6 space-y-6 pt-6 border-t border-gray-50 animate-in fade-in slide-in-from-top-4 duration-300">
                 <div className="space-y-4">
-                  {post.comments.map(comment => (
+                  {displayPost.comments.map(comment => (
                     <CommentItem 
                       key={comment.id} 
                       comment={comment} 
@@ -216,11 +223,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onUpdatePost, onDeletePost, o
                 <div className="mt-8 pt-6 border-t border-gray-100">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-xs font-black text-gray-400 uppercase flex items-center gap-2">
-                      <MessageCircle size={14} /> クラスのコメント ({post.comments.length})
+                      <MessageCircle size={14} /> クラスのコメント ({displayPost.comments.length})
                     </h4>
                   </div>
                   <div className="space-y-4 mb-6">
-                    {post.comments.map(comment => (
+                    {displayPost.comments.map(comment => (
                       <CommentItem 
                         key={comment.id} 
                         comment={comment} 
