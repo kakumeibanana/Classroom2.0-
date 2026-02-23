@@ -331,9 +331,7 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
           )}
 
           {subjectSubTab === 'classwork' && (
-            <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-300">
-              {subjectAssignments.map(post => (
-                <PostCard grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto animate-in fade-in duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto animate-in fade-in duration-300">
               {subjectAssignments.map(post => (
                 <div key={post.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-2">
@@ -353,6 +351,8 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
                     詳細を見る
                   </button>
                 </div>
+              ))}
+            </div>
           )}
 
           {subjectSubTab === 'todo' && !isTeacher && (
