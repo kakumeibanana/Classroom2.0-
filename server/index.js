@@ -197,6 +197,11 @@ app.get('/api/user/:userId', async (req, res) => {
     const { userId } = req.params;
     const userData = await db.get('SELECT * FROM user_data WHERE userId = ?', [userId]);
     
+    // Get all posts from global posts table (shared across all users)
+    const globalPosts = await db.all(
+      `SELECT * FROM posts ORDER BY createdAt DESC`
+    );
+    
     // Build chat histories from chat_messages table
     const messages = await db.all(
       `SELECT * FROM chat_messages WHERE senderId = ? OR receiverId = ? ORDER BY timestamp ASC`,
@@ -224,7 +229,7 @@ app.get('/api/user/:userId', async (req, res) => {
       }
     }
 
-    const postsData = userData ? JSON.parse(userData.postsJson || '[]') : [];
+    const postsData = globalPosts || [];
     const groupsData = userData ? JSON.parse(userData.groupsJson || '[]') : [];
     const notificationsData = userData ? JSON.parse(userData.notificationsJson || '[]') : [];
 
@@ -261,13 +266,34 @@ app.post('/api/user/:userId/save', async (req, res) => {
       chatHistoriesKeys: Object.keys(chatHistories || {}).length
     });
 
+    // Save posts to global posts table
+    if (posts && posts.length > 0) {
+      for (const post of posts) {
+        const existing = await db.get('SELECT * FROM posts WHERE id = ?', [post.id]);
+        if (existing) {
+          // Update existing post
+          await db.run(
+            `UPDATE posts SET authorId = ?, title = ?, content = ?, timestamp = ?, deadline = ?, subjectId = ?, isAssignment = ?, simulationStatus = ? WHERE id = ?`,
+            [post.author?.id || post.authorId, post.title, post.content, post.timestamp, post.deadline, post.subjectId, post.isAssignment ? 1 : 0, post.simulationStatus, post.id]
+          );
+        } else {
+          // Insert new post
+          await db.run(
+            `INSERT INTO posts (id, authorId, title, content, timestamp, deadline, subjectId, isAssignment, simulationStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [post.id, post.author?.id || post.authorId, post.title, post.content, post.timestamp, post.deadline, post.subjectId, post.isAssignment ? 1 : 0, post.simulationStatus]
+          );
+        }
+      }
+      console.log(`📝 Saved ${posts.length} posts to database`);
+    }
+
+    // Save user-specific data (groups, notifications) to user_data table
     const existing = await db.get('SELECT * FROM user_data WHERE userId = ?', [userId]);
 
     if (existing) {
       await db.run(
-        `UPDATE user_data SET postsJson = ?, groupsJson = ?, notificationsJson = ?, chatHistoriesJson = ?, updatedAt = CURRENT_TIMESTAMP WHERE userId = ?`,
+        `UPDATE user_data SET groupsJson = ?, notificationsJson = ?, chatHistoriesJson = ?, updatedAt = CURRENT_TIMESTAMP WHERE userId = ?`,
         [
-          JSON.stringify(posts),
           JSON.stringify(groups),
           JSON.stringify(notifications),
           JSON.stringify(chatHistories),
@@ -279,7 +305,7 @@ app.post('/api/user/:userId/save', async (req, res) => {
         `INSERT INTO user_data (userId, postsJson, groupsJson, notificationsJson, chatHistoriesJson) VALUES (?, ?, ?, ?, ?)`,
         [
           userId,
-          JSON.stringify(posts),
+          '[]', // Empty posts array - they go to global posts table
           JSON.stringify(groups),
           JSON.stringify(notifications),
           JSON.stringify(chatHistories)
