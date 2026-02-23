@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import cors from 'cors';
 import multer from 'multer';
 import fs from 'fs';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,13 +100,58 @@ async function initDb() {
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('student', 'teacher')),
+      avatar TEXT,
+      classId TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS user_data (
       userId TEXT PRIMARY KEY,
       postsJson TEXT,
       groupsJson TEXT,
       notificationsJson TEXT,
       chatHistoriesJson TEXT,
-      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS assignments (
+      id TEXT PRIMARY KEY,
+      authorId TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      deadline DATETIME,
+      classId TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (authorId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS assignment_submissions (
+      id TEXT PRIMARY KEY,
+      assignmentId TEXT NOT NULL,
+      studentId TEXT NOT NULL,
+      content TEXT,
+      attachments TEXT,
+      submittedAt DATETIME,
+      status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'submitted', 'graded')),
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (assignmentId) REFERENCES assignments(id) ON DELETE CASCADE,
+      FOREIGN KEY (studentId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      sessionToken TEXT UNIQUE NOT NULL,
+      expiresAt DATETIME NOT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON chat_messages(senderId);
@@ -113,7 +159,31 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_chat_messages_group ON chat_messages(groupId);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId);
     CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(authorId);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_assignments_author ON assignments(authorId);
+    CREATE INDEX IF NOT EXISTS idx_assignment_submissions_student ON assignment_submissions(studentId);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(userId);
   `);
+
+  // Initialize demo users if they don't exist
+  const teacherExists = await db.get("SELECT * FROM users WHERE email = ?", ['teacher@school.jp']);
+  const studentExists = await db.get("SELECT * FROM users WHERE email = ?", ['student@school.jp']);
+
+  if (!teacherExists) {
+    const hashedPassword = crypto.createHash('sha256').update('password').digest('hex');
+    await db.run(
+      `INSERT INTO users (id, name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?)`,
+      ['user-teacher-1', '山田先生', 'teacher@school.jp', hashedPassword, 'teacher', 'https://ui-avatars.com/api/?name=山田先生&background=1a73e8&color=ffffff']
+    );
+  }
+
+  if (!studentExists) {
+    const hashedPassword = crypto.createHash('sha256').update('password').digest('hex');
+    await db.run(
+      `INSERT INTO users (id, name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?)`,
+      ['user-student-1', '山田太郎', 'student@school.jp', hashedPassword, 'student', 'https://ui-avatars.com/api/?name=山田太郎&background=10b981&color=ffffff']
+    );
+  }
 
   console.log('✅ Database initialized successfully');
 }
@@ -352,6 +422,265 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     res.json(fileInfo);
   } catch (error) {
     console.error('Error uploading file:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Auth Routes
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { name, email, password, role, classId } = req.body;
+
+    // Check if user exists
+    const existing = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+    if (existing) {
+      return res.status(400).json({ error: 'ユーザーのメールアドレスは既に存在します' });
+    }
+
+    // Hash password (simple hash for demo)
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    const userId = 'user-' + Date.now();
+
+    await db.run(
+      `INSERT INTO users (id, name, email, password, role, classId, avatar) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, name, email, hashedPassword, role || 'student', classId || null, `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`]
+    );
+
+    // Create session
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await db.run(
+      `INSERT INTO sessions (id, userId, sessionToken, expiresAt) VALUES (?, ?, ?, ?)`,
+      ['session-' + Date.now(), userId, sessionToken, expiresAt]
+    );
+
+    res.json({
+      success: true,
+      userId,
+      sessionToken,
+      user: {
+        id: userId,
+        name,
+        email,
+        role: role || 'student',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`
+      }
+    });
+  } catch (error) {
+    console.error('Error signing up:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+    if (!user) {
+      return res.status(401).json({ error: 'メールアドレスまたはパスワードが正しくありません' });
+    }
+
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    if (user.password !== hashedPassword) {
+      return res.status(401).json({ error: 'メールアドレスまたはパスワードが正しくありません' });
+    }
+
+    // Create session
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await db.run(
+      `INSERT INTO sessions (id, userId, sessionToken, expiresAt) VALUES (?, ?, ?, ?)`,
+      ['session-' + Date.now(), user.id, sessionToken, expiresAt]
+    );
+
+    res.json({
+      success: true,
+      userId: user.id,
+      sessionToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    console.error('Error logging in:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const sessionToken = req.headers.authorization?.split(' ')[1];
+    if (!sessionToken) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const session = await db.get(
+      'SELECT * FROM sessions WHERE sessionToken = ? AND expiresAt > CURRENT_TIMESTAMP',
+      [sessionToken]
+    );
+
+    if (!session) {
+      return res.status(401).json({ error: 'Session expired' });
+    }
+
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [session.userId]);
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar
+    });
+  } catch (error) {
+    console.error('Error fetching current user:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Assignment Routes
+app.post('/api/assignments', async (req, res) => {
+  try {
+    const { authorId, title, description, deadline, classId } = req.body;
+
+    // Check if user is teacher
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [authorId]);
+    if (!user || user.role !== 'teacher') {
+      return res.status(403).json({ error: '先生だけが課題を作成できます' });
+    }
+
+    const assignmentId = 'assignment-' + Date.now();
+    await db.run(
+      `INSERT INTO assignments (id, authorId, title, description, deadline, classId)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [assignmentId, authorId, title, description || null, deadline || null, classId || null]
+    );
+
+    res.json({ success: true, assignmentId });
+  } catch (error) {
+    console.error('Error creating assignment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/assignments', async (req, res) => {
+  try {
+    const { classId } = req.query;
+
+    const assignments = await db.all(
+      classId 
+        ? 'SELECT * FROM assignments WHERE classId = ? ORDER BY createdAt DESC' 
+        : 'SELECT * FROM assignments ORDER BY createdAt DESC',
+      classId ? [classId] : []
+    );
+
+    // Get submission count for each assignment
+    const result = await Promise.all(
+      (assignments || []).map(async (a) => {
+        const submissions = await db.all(
+          'SELECT * FROM assignment_submissions WHERE assignmentId = ?',
+          [a.id]
+        );
+        return {
+          ...a,
+          submissions: submissions || []
+        };
+      })
+    );
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching assignments:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DM Routes (Direct Messages)
+app.post('/api/dm', async (req, res) => {
+  try {
+    const { senderId, receiverId, content, timestamp } = req.body;
+
+    const messageId = 'dm-' + Date.now();
+    await db.run(
+      `INSERT INTO chat_messages (id, senderId, receiverId, content, timestamp, isRead)
+       VALUES (?, ?, ?, ?, ?, 0)`,
+      [messageId, senderId, receiverId, content, timestamp]
+    );
+
+    // Create notification
+    const notificationId = 'notif-' + Date.now();
+    const sender = await db.get('SELECT name FROM users WHERE id = ?', [senderId]);
+    await db.run(
+      `INSERT INTO notifications (id, userId, type, title, description, timestamp, isRead)
+       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+      [notificationId, receiverId, 'message', `${sender.name}からのメッセージ`, content.substring(0, 50), timestamp]
+    );
+
+    res.json({ success: true, messageId });
+  } catch (error) {
+    console.error('Error sending DM:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/dm/:userId1/:userId2', async (req, res) => {
+  try {
+    const { userId1, userId2 } = req.params;
+
+    const messages = await db.all(
+      `SELECT * FROM chat_messages 
+       WHERE ((senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?))
+       ORDER BY timestamp ASC`,
+      [userId1, userId2, userId2, userId1]
+    );
+
+    res.json(messages || []);
+  } catch (error) {
+    console.error('Error fetching DM:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/dm/:userId/list', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get unique conversation partners
+    const conversations = await db.all(
+      `SELECT DISTINCT 
+        CASE WHEN senderId = ? THEN receiverId ELSE senderId END as userId,
+        MAX(timestamp) as lastMessageTime
+       FROM chat_messages
+       WHERE senderId = ? OR receiverId = ?
+       GROUP BY userId
+       ORDER BY lastMessageTime DESC`,
+      [userId, userId, userId]
+    );
+
+    // Get user details for each conversation partner
+    const result = await Promise.all(
+      (conversations || []).map(async (conv) => {
+        const user = await db.get('SELECT id, name, avatar FROM users WHERE id = ?', [conv.userId]);
+        const unreadCount = await db.get(
+          `SELECT COUNT(*) as count FROM chat_messages 
+           WHERE senderId = ? AND receiverId = ? AND isRead = 0`,
+          [conv.userId, userId]
+        );
+        return {
+          user,
+          lastMessageTime: conv.lastMessageTime,
+          unreadCount: unreadCount?.count || 0
+        };
+      })
+    );
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching DM list:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -175,3 +175,146 @@ export async function uploadFile(file: File): Promise<{ id: string; name: string
     return null;
   }
 }
+// Auth APIs
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'student' | 'teacher';
+  avatar: string;
+}
+
+export async function signup(name: string, email: string, password: string, role: 'student' | 'teacher', classId?: string): Promise<{ userId: string; sessionToken: string; user: AuthUser } | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, role, classId })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error);
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Error signing up:', error);
+    return null;
+  }
+}
+
+export async function login(email: string, password: string): Promise<{ userId: string; sessionToken: string; user: AuthUser } | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error);
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Error logging in:', error);
+    return null;
+  }
+}
+
+export async function getCurrentUser(sessionToken: string): Promise<AuthUser | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${sessionToken}` }
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching current user:', error);
+    return null;
+  }
+}
+
+// DM APIs
+export async function sendDM(senderId: string, receiverId: string, content: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/dm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        senderId,
+        receiverId,
+        content,
+        timestamp: new Date().toISOString()
+      })
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Error sending DM:', error);
+    return false;
+  }
+}
+
+export async function getDMHistory(userId1: string, userId2: string): Promise<ApiMessage[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/dm/${userId1}/${userId2}`);
+    if (!response.ok) return [];
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching DM history:', error);
+    return [];
+  }
+}
+
+export async function getDMList(userId: string): Promise<{ user: AuthUser; lastMessageTime: string; unreadCount: number }[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/dm/${userId}/list`);
+    if (!response.ok) return [];
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching DM list:', error);
+    return [];
+  }
+}
+
+// Assignment APIs
+export interface Assignment {
+  id: string;
+  authorId: string;
+  title: string;
+  description?: string;
+  deadline?: string;
+  classId?: string;
+  createdAt: string;
+  submissions?: any[];
+}
+
+export async function createAssignment(authorId: string, title: string, description?: string, deadline?: string, classId?: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/assignments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        authorId,
+        title,
+        description,
+        deadline,
+        classId
+      })
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Error creating assignment:', error);
+    return false;
+  }
+}
+
+export async function getAssignments(classId?: string): Promise<Assignment[]> {
+  try {
+    const url = classId ? `${API_BASE_URL}/assignments?classId=${classId}` : `${API_BASE_URL}/assignments`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching assignments:', error);
+    return [];
+  }
+}

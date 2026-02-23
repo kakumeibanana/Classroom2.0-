@@ -5,7 +5,7 @@ import { Message, User, ChatGroup } from '../types';
 import { useAppContext } from '../context/AppContext';
 import ChatList from './ChatList';
 import MessageArea from './MessageArea';
-import { createMessage, createNotification, addReaction } from '../src/api/client';
+import { createMessage, createNotification, addReaction, sendDM } from '../src/api/client';
 
 interface ChatProps {
   currentUser: User;
@@ -69,7 +69,13 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
     // Send to API and create notification (non-blocking)
     const sendAsync = async () => {
       const messageCopy = { ...newMessage };
-      await createMessage(messageCopy);
+      
+      // Use sendDM for direct messages, createMessage for group messages
+      if (!isGroup) {
+        await sendDM(currentUser.id, selectedChat.id, content.trim());
+      } else {
+        await createMessage(messageCopy);
+      }
 
       // Create notification for the receiver (not for sender)
       if (!isGroup) {
