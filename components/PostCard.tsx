@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { MoreVertical, FileText, Layout as SlidesIcon, ClipboardList, Heart, MessageCircle, Pin, Reply, Send, FileSpreadsheet, FileBox, FileCode, CheckCircle2, AlertCircle, Users, Clock, Circle } from 'lucide-react';
 import { Post, Comment, Attachment } from '../types';
-import { CURRENT_USER } from '../constants';
+import { CURRENT_USER, USERS } from '../constants';
 import MentionText from './MentionText';
 import MentionInput from './MentionInput';
 
@@ -49,6 +49,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, onUpdatePost, onDeletePost, o
   const [liked, setLiked] = useState(false);
   const [showComments, setShowComments] = useState(false);
 
+  // Resolve author from USERS if post.author is undefined (when loaded from API)
+  const author = post.author || USERS.find(u => u.id === (post as any).authorId);
+  const displayPost = { ...post, author: author || { id: '', name: 'Unknown', avatar: '', role: 'student' as const } };
+
   const renderAttachments = () => (
     post.attachments && post.attachments.length > 0 && (
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -72,12 +76,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, onUpdatePost, onDeletePost, o
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group animate-in fade-in duration-300">
         <div className="flex items-start gap-4">
           <div className="relative">
-            <img src={post.author.avatar} alt={post.author.name} className="w-10 h-10 rounded-full ring-2 ring-white shadow-sm" />
+            <img src={displayPost.author.avatar} alt={displayPost.author.name} className="w-10 h-10 rounded-full ring-2 ring-white shadow-sm" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-900 text-sm hover:underline cursor-pointer">{post.author.name}</span>
+                <span className="font-bold text-gray-900 text-sm hover:underline cursor-pointer">{displayPost.author.name}</span>
                 <span className="text-[10px] text-gray-400">{post.timestamp}</span>
               </div>
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -201,7 +205,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onUpdatePost, onDeletePost, o
                     )}
                   </div>
                 </div>
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter mb-4">{post.author.name} • {post.timestamp}</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter mb-4">{displayPost.author.name} • {post.timestamp}</p>
                 
                 <div className="text-sm text-gray-700 leading-relaxed mb-6 border-t border-gray-50 pt-4">
                   <MentionText text={post.content} />
