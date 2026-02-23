@@ -14,23 +14,8 @@ interface GroupWorkspaceProps {
 
 const GroupWorkspace: React.FC<GroupWorkspaceProps> = ({ group, onBack, currentUser }) => {
   const [activeView, setActiveView] = useState<'chat' | 'posts'>('chat');
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', senderId: 'u2', content: '先行研究のリスト、これにまとめておいたよ！', timestamp: '10:05', groupId: group.id },
-    { id: '2', senderId: 'u4', content: 'おー、ありがとう！あとで見てみる。', timestamp: '10:10', groupId: group.id },
-  ]);
-  const [groupPosts, setGroupPosts] = useState<Post[]>([
-    {
-      id: 'gp1',
-      author: USERS[1],
-      content: '班内限定で資料共有します！これをもとに次回の会議進めましょう。',
-      timestamp: '2時間前',
-      likes: 2,
-      reactions: [],
-      comments: [],
-      groupId: group.id,
-      attachments: [{ id: 'ga1', title: '班内用メモ', url: '#', type: 'doc' }]
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [groupPosts, setGroupPosts] = useState<Post[]>([]);
   const [resources] = useState<WorkspaceResource[]>([
     { id: 'r1', title: '調査対象リスト.gsheet', type: 'file', lastModified: '2時間前' },
     { id: 'r2', title: '参考論文リンク集', type: 'link', lastModified: '昨日' },

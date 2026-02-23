@@ -231,12 +231,24 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
   const renderSubjectContent = (subjectId: string) => {
     const subject = MOCK_SUBJECTS.find(s => s.id === subjectId);
     const subjectPosts = posts.filter(p => p.subjectId === subjectId);
-    const subjectAssignments = subjectPosts.filter(p => p.isAssignment);
     const isTeacher = activeUser.role === 'teacher';
     
     const subjectGroups = groups.filter(g => 
       g.subjectId === subjectId && (isTeacher || g.members.includes(activeUser.id))
     );
+
+    // Get user's group IDs for filtering group assignments
+    const userGroupIds = subjectGroups.map(g => g.id);
+
+    // Filter assignments based on user role and group membership
+    let subjectAssignments = subjectPosts.filter(p => p.isAssignment);
+    if (!isTeacher) {
+      // For students, only show assignments that belong to their groups or have no group
+      subjectAssignments = subjectAssignments.filter(p => 
+        !p.groupId || userGroupIds.includes(p.groupId)
+      );
+    }
+    // For teachers, show all assignments
 
     if (selectedGroup) {
       return (
@@ -321,15 +333,26 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
           {subjectSubTab === 'classwork' && (
             <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-300">
               {subjectAssignments.map(post => (
-                <PostCard 
-                  key={post.id} 
-                  post={post} 
-                  onUpdatePost={handleUpdatePost} 
-                  onAddComment={handleAddComment}
-                  onCycleStatus={() => cycleSimulationStatus(post.id)}
-                />
-              ))}
-            </div>
+                <PostCard grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto animate-in fade-in duration-300">
+              {subjectAssignments.map(post => (
+                <div key={post.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-sm text-gray-900 line-clamp-2">{post.title || post.content}</h3>
+                  </div>
+                  <p className="text-xs text-gray-600 line-clamp-2 mb-3">{post.content}</p>
+                  {post.deadline && (
+                    <div className="text-xs text-red-500 font-medium mb-2">期限: {post.deadline}</div>
+                  )}
+                  <button 
+                    onClick={() => {
+                      dispatch({ type: 'SET_SELECTED_POST', payload: post });
+                      dispatch({ type: 'SET_MAIN_VIEW', payload: 'post-detail' });
+                    }}
+                    className="w-full px-3 py-1.5 text-xs font-semibold bg-blue-50 text-[#1a73e8] rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    詳細を見る
+                  </button>
+                </div>
           )}
 
           {subjectSubTab === 'todo' && !isTeacher && (
