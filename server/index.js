@@ -224,11 +224,22 @@ app.get('/api/user/:userId', async (req, res) => {
       }
     }
 
+    const postsData = userData ? JSON.parse(userData.postsJson || '[]') : [];
+    const groupsData = userData ? JSON.parse(userData.groupsJson || '[]') : [];
+    const notificationsData = userData ? JSON.parse(userData.notificationsJson || '[]') : [];
+
+    console.log(`📊 [GET /api/user/${userId}] Returning data:`, {
+      postsCount: postsData.length,
+      groupsCount: groupsData.length,
+      notificationsCount: notificationsData.length,
+      chatHistoriesKeys: Object.keys(chatHistories).length
+    });
+
     return res.json({
       userId,
-      posts: userData ? JSON.parse(userData.postsJson || '[]') : [],
-      groups: userData ? JSON.parse(userData.groupsJson || '[]') : [],
-      notifications: userData ? JSON.parse(userData.notificationsJson || '[]') : [],
+      posts: postsData,
+      groups: groupsData,
+      notifications: notificationsData,
       chatHistories
     });
   } catch (error) {
@@ -242,6 +253,13 @@ app.post('/api/user/:userId/save', async (req, res) => {
   try {
     const { userId } = req.params;
     const { posts, groups, notifications, chatHistories } = req.body;
+
+    console.log(`💾 [POST /api/user/${userId}/save] Saving data:`, {
+      postsCount: posts?.length || 0,
+      groupsCount: groups?.length || 0,
+      notificationsCount: notifications?.length || 0,
+      chatHistoriesKeys: Object.keys(chatHistories || {}).length
+    });
 
     const existing = await db.get('SELECT * FROM user_data WHERE userId = ?', [userId]);
 

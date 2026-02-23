@@ -70,8 +70,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'TOGGLE_SIDEBAR':
       return { ...state, sidebarOpen: !state.sidebarOpen };
     case 'SET_POSTS':
+      console.log(`📝 SET_POSTS: ${action.payload.length} posts loaded`);
       return { ...state, posts: action.payload };
     case 'ADD_POST':
+      console.log(`➕ ADD_POST: Added 1 post, total now ${state.posts.length + 1}`);
       return { ...state, posts: [action.payload, ...state.posts] };
     case 'UPDATE_POST':
       return {
@@ -81,8 +83,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ),
       };
     case 'SET_GROUPS':
+      console.log(`👥 SET_GROUPS: ${action.payload.length} groups loaded`);
       return { ...state, groups: action.payload };
     case 'ADD_GROUP':
+      console.log(`➕ ADD_GROUP: Added 1 group, total now ${state.groups.length + 1}`);
       return { ...state, groups: [...state.groups, action.payload] };
     case 'SET_NOTIFICATIONS':
       return { ...state, notifications: action.payload };
