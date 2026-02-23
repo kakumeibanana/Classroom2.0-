@@ -13,7 +13,7 @@ import { AppProvider, useAppContext } from './context/AppContext';
 import { MOCK_SUBJECTS, USERS } from './constants';
 import { Layout, BookOpen, Users, ShieldAlert, Plus, UserPlus, X, ClipboardCheck, Check, Lock, User as UserIcon, Folder, MoreVertical } from 'lucide-react';
 import { Post, ChatGroup, Attachment, Notification, SimulationStatus } from './types';
-import { createAssignment, createPost, getUserData, saveUserData } from './src/api/client';
+import { getUserData, saveUserData } from './src/api/client';
 
 interface AppContentProps {
   teacher: any;
@@ -33,21 +33,17 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
   // Load user data from API when activeUser changes
   useEffect(() => {
     const loadUserData = async () => {
+      console.log(`🔄 Loading data for user: ${activeUser.id}`);
       const userData = await getUserData(activeUser.id);
       if (userData) {
-        // Only update posts if user has saved posts (fallback to current state which has mock data)
-        if (userData.posts && userData.posts.length > 0) {
-          dispatch({ type: 'SET_POSTS', payload: userData.posts });
-        }
-        if (userData.groups && userData.groups.length > 0) {
-          dispatch({ type: 'SET_GROUPS', payload: userData.groups });
-        }
-        if (userData.notifications && userData.notifications.length > 0) {
-          dispatch({ type: 'SET_NOTIFICATIONS', payload: userData.notifications });
-        }
-        if (userData.chatHistories && Object.keys(userData.chatHistories).length > 0) {
-          dispatch({ type: 'SET_CHAT_HISTORIES', payload: userData.chatHistories });
-        }
+        console.log(`📊 User data received:`, userData);
+        // Update with API data, preserving mock data as fallback
+        dispatch({ type: 'SET_POSTS', payload: userData.posts || [] });
+        dispatch({ type: 'SET_GROUPS', payload: userData.groups || [] });
+        dispatch({ type: 'SET_NOTIFICATIONS', payload: userData.notifications || [] });
+        dispatch({ type: 'SET_CHAT_HISTORIES', payload: userData.chatHistories || {} });
+      } else {
+        console.log(`⚠️ No API data for ${activeUser.id}, using current mock data`);
       }
     };
     loadUserData();
@@ -144,32 +140,8 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
       attachments,
       simulationStatus: 'pending'
     };
+    console.log(`📝 Creating post:`, newPost);
     dispatch({ type: 'ADD_POST', payload: newPost });
-    
-    // Save to API
-    const saveToAPI = async () => {
-      if (newPost.isAssignment) {
-        // Save as assignment
-        await createAssignment(
-          activeUser.id,
-          newPost.title || 'Untitled',
-          newPost.content,
-          newPost.deadline
-        );
-      } else {
-        // Save as regular post
-        await createPost({
-          id: newPost.id,
-          authorId: activeUser.id,
-          title: newPost.title,
-          content: newPost.content,
-          timestamp: new Date().toISOString(),
-          deadline: newPost.deadline,
-          isAssignment: false
-        });
-      }
-    };
-    saveToAPI();
     
     if (newPost.isAssignment) {
       dispatch({ type: 'SET_SUBJECT_SUB_TAB', payload: 'classwork' });
@@ -184,6 +156,8 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
       };
       dispatch({ type: 'ADD_NOTIFICATION', payload: newNotification });
     }
+    
+    // Data will be saved by the saveUserData effect
   };
 
   const handleAddComment = (postId: string, content: string, parentCommentId?: string) => {

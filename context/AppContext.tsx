@@ -51,14 +51,12 @@ const initialState: AppState = {
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'SET_ACTIVE_USER': {
-      const userData = USER_MOCK_DATA[action.payload.id];
+      // Only change the active user, don't reset data
+      // Data will be loaded by API in useEffect
+      console.log(`🔄 Switching to user: ${action.payload.id}`);
       return {
         ...state,
         activeUser: action.payload,
-        posts: userData?.posts || MOCK_POSTS,
-        groups: userData?.groups || MOCK_GROUPS,
-        notifications: userData?.notifications || MOCK_NOTIFICATIONS,
-        chatHistories: userData?.chatHistories || {},
         selectedGroup: null,
         activeTab: 'home',
       };

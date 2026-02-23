@@ -29,7 +29,9 @@ export async function getUserData(userId: string): Promise<UserData | null> {
       console.warn(`User data not found for ${userId}, using local data`);
       return null;
     }
-    return response.json();
+    const data = await response.json();
+    console.log(`✅ Loaded user data for ${userId}:`, data);
+    return data;
   } catch (error) {
     console.error('Error fetching user data:', error);
     return null;
@@ -38,11 +40,17 @@ export async function getUserData(userId: string): Promise<UserData | null> {
 
 export async function saveUserData(userId: string, data: Omit<UserData, 'userId'>): Promise<boolean> {
   try {
+    console.log(`💾 Saving user data for ${userId}:`, data);
     const response = await fetch(`${API_BASE_URL}/user/${userId}/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
+    if (response.ok) {
+      console.log(`✅ Successfully saved user data for ${userId}`);
+    } else {
+      console.error(`❌ Failed to save user data for ${userId}. Status: ${response.status}`);
+    }
     return response.ok;
   } catch (error) {
     console.error('Error saving user data:', error);
