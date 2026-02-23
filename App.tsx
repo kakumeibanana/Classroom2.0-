@@ -13,7 +13,7 @@ import { AppProvider, useAppContext } from './context/AppContext';
 import { MOCK_SUBJECTS, USERS } from './constants';
 import { Layout, BookOpen, Users, ShieldAlert, Plus, UserPlus, X, ClipboardCheck, Check, Lock, User as UserIcon, Folder, MoreVertical } from 'lucide-react';
 import { Post, ChatGroup, Attachment, Notification, SimulationStatus } from './types';
-import { createAssignment, createPost } from './src/api/client';
+import { createAssignment, createPost, getUserData, saveUserData } from './src/api/client';
 
 interface AppContentProps {
   teacher: any;
@@ -21,7 +21,7 @@ interface AppContentProps {
 
 const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
   const { state, dispatch } = useAppContext();
-  const { activeUser, activeTab, posts, groups, notifications, selectedGroup } = state;
+  const { activeUser, activeTab, posts, groups, notifications, selectedGroup, chatHistories } = state;
   const subjectSubTab = (state as any).subjectSubTab || 'stream';
   const [showGroupCreator, setShowGroupCreator] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -29,6 +29,44 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  // Load user data from API when activeUser changes
+  useEffect(() => {
+    const loadUserData = async () => {
+      const userData = await getUserData(activeUser.id);
+      if (userData) {
+        // Only update posts if user has saved posts (fallback to current state which has mock data)
+        if (userData.posts && userData.posts.length > 0) {
+          dispatch({ type: 'SET_POSTS', payload: userData.posts });
+        }
+        if (userData.groups && userData.groups.length > 0) {
+          dispatch({ type: 'SET_GROUPS', payload: userData.groups });
+        }
+        if (userData.notifications && userData.notifications.length > 0) {
+          dispatch({ type: 'SET_NOTIFICATIONS', payload: userData.notifications });
+        }
+        if (userData.chatHistories && Object.keys(userData.chatHistories).length > 0) {
+          dispatch({ type: 'SET_CHAT_HISTORIES', payload: userData.chatHistories });
+        }
+      }
+    };
+    loadUserData();
+  }, [activeUser.id, dispatch]);
+
+  // Save user data to API periodically (debounced)
+  useEffect(() => {
+    const saveData = async () => {
+      await saveUserData(activeUser.id, {
+        posts,
+        groups,
+        notifications,
+        chatHistories
+      });
+    };
+    // Save with debounce when data changes
+    const timerId = setTimeout(saveData, 2000);
+    return () => clearTimeout(timerId);
+  }, [posts, groups, notifications, chatHistories, activeUser.id]);
 
   const switchUser = (id?: string) => {
     if (id) {

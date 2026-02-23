@@ -166,23 +166,24 @@ async function initDb() {
   `);
 
   // Initialize demo users if they don't exist
-  const teacherExists = await db.get("SELECT * FROM users WHERE email = ?", ['teacher@school.jp']);
-  const studentExists = await db.get("SELECT * FROM users WHERE email = ?", ['student@school.jp']);
+  const userIds = ['u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7'];
+  const userNames = ['Aさん', 'Bさん', 'Cさん', 'Dさん', 'Eさん', 'Fさん', '鈴木先生'];
+  const userRoles = ['student', 'student', 'student', 'student', 'student', 'student', 'teacher'];
+  const userSeeds = ['A', 'B', 'C', 'D', 'E', 'F', 'Sheldon'];
 
-  if (!teacherExists) {
-    const hashedPassword = crypto.createHash('sha256').update('password').digest('hex');
-    await db.run(
-      `INSERT INTO users (id, name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?)`,
-      ['user-teacher-1', '山田先生', 'teacher@school.jp', hashedPassword, 'teacher', 'https://ui-avatars.com/api/?name=山田先生&background=1a73e8&color=ffffff']
-    );
-  }
-
-  if (!studentExists) {
-    const hashedPassword = crypto.createHash('sha256').update('password').digest('hex');
-    await db.run(
-      `INSERT INTO users (id, name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?)`,
-      ['user-student-1', '山田太郎', 'student@school.jp', hashedPassword, 'student', 'https://ui-avatars.com/api/?name=山田太郎&background=10b981&color=ffffff']
-    );
+  for (let i = 0; i < userIds.length; i++) {
+    const userExists = await db.get("SELECT * FROM users WHERE id = ?", [userIds[i]]);
+    if (!userExists) {
+      const hashedPassword = crypto.createHash('sha256').update('password').digest('hex');
+      const avatarUrl = i === 6 
+        ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sheldon&glassesProbability=100&mouth=smile&top=shortHair&facialHairProbability=0'
+        : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userSeeds[i]}`;
+      
+      await db.run(
+        `INSERT INTO users (id, name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?)`,
+        [userIds[i], userNames[i], `user-${i+1}@school.jp`, hashedPassword, userRoles[i], avatarUrl]
+      );
+    }
   }
 
   console.log('✅ Database initialized successfully');
