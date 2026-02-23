@@ -212,6 +212,12 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
     setShowGroupCreator(false);
   };
 
+  const toggleStudentSelection = (id: string) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+    );
+  };
+
   // Calculate unread DM count
   const unreadDMCount = Object.values(chatHistories).reduce((total, messages) => {
     return total + messages.filter(m => !m.isRead && m.senderId !== activeUser.id).length;
