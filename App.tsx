@@ -9,7 +9,6 @@ import PostComposer from './components/PostComposer';
 import TodoList from './components/TodoList';
 import NotificationsView from './components/NotificationsView';
 import SettingsView from './components/SettingsView';
-import AuthView from './components/AuthView';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { MOCK_SUBJECTS, USERS } from './constants';
 import { Layout, BookOpen, Users, ShieldAlert, Plus, UserPlus, X, ClipboardCheck, Check, Lock, User as UserIcon, Folder, MoreVertical } from 'lucide-react';
@@ -18,11 +17,9 @@ import { createAssignment, createPost } from './src/api/client';
 
 interface AppContentProps {
   teacher: any;
-  onLogout: () => void;
-  currentUser: any;
 }
 
-const AppContent: React.FC<AppContentProps> = ({ teacher, onLogout, currentUser }) => {
+const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
   const { state, dispatch } = useAppContext();
   const { activeUser, activeTab, posts, groups, notifications, selectedGroup } = state;
   const subjectSubTab = (state as any).subjectSubTab || 'stream';
@@ -545,46 +542,10 @@ const AppContent: React.FC<AppContentProps> = ({ teacher, onLogout, currentUser 
 
 const App: React.FC = () => {
   const teacher = USERS.find(u => u.role === 'teacher');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Check if user is already logged in (session token stored in localStorage)
-    const storedSessionToken = localStorage.getItem('sessionToken');
-    if (storedSessionToken) {
-      setSessionToken(storedSessionToken);
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
-        setCurrentUser(JSON.parse(storedUser));
-        setIsAuthenticated(true);
-      }
-    }
-  }, []);
-
-  const handleAuthSuccess = (userId: string, token: string, user: any) => {
-    setCurrentUser(user);
-    setSessionToken(token);
-    localStorage.setItem('sessionToken', token);
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setSessionToken(null);
-    localStorage.removeItem('sessionToken');
-    localStorage.removeItem('currentUser');
-  };
-
-  if (!isAuthenticated) {
-    return <AuthView onAuthSuccess={handleAuthSuccess} />;
-  }
 
   return (
     <AppProvider>
-      <AppContent teacher={teacher} onLogout={handleLogout} currentUser={currentUser} />
+      <AppContent teacher={teacher} />
     </AppProvider>
   );
 };
