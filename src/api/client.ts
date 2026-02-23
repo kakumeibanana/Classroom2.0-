@@ -1,4 +1,5 @@
-const API_BASE_URL = '/api';
+// Use environment variable for API base URL, fallback to relative path for local dev
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
 
 export interface UserData {
   userId: string;
