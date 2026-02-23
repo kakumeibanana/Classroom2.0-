@@ -100,6 +100,16 @@ async function initDb() {
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS groups (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      members TEXT NOT NULL,
+      subjectId TEXT,
+      description TEXT,
+      createdBy TEXT NOT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -201,6 +211,31 @@ app.get('/api/user/:userId', async (req, res) => {
     const globalPosts = await db.all(
       `SELECT * FROM posts ORDER BY createdAt DESC`
     );
+
+    // Get user's groups from global groups table (groups they are members of)
+    const allGroups = await db.all(`SELECT * FROM groups`);
+    const userGroups = [];
+    
+    if (allGroups) {
+      for (const group of allGroups) {
+        try {
+          const members = JSON.parse(group.members || '[]');
+          if (members.includes(userId)) {
+            userGroups.push({
+              id: group.id,
+              name: group.name,
+              members: members,
+              subjectId: group.subjectId,
+              description: group.description,
+              createdBy: group.createdBy,
+              createdAt: group.createdAt
+            });
+          }
+        } catch (e) {
+          console.error(`Error parsing members for group ${group.id}:`, e);
+        }
+      }
+    }
     
     // Build chat histories from chat_messages table
     const messages = await db.all(
@@ -230,7 +265,7 @@ app.get('/api/user/:userId', async (req, res) => {
     }
 
     const postsData = globalPosts || [];
-    const groupsData = userData ? JSON.parse(userData.groupsJson || '[]') : [];
+    const groupsData = userGroups || [];
     const notificationsData = userData ? JSON.parse(userData.notificationsJson || '[]') : [];
 
     console.log(`📊 [GET /api/user/${userId}] Returning data:`, {
@@ -287,14 +322,34 @@ app.post('/api/user/:userId/save', async (req, res) => {
       console.log(`📝 Saved ${posts.length} posts to database`);
     }
 
-    // Save user-specific data (groups, notifications) to user_data table
+    // Save groups to global groups table
+    if (groups && groups.length > 0) {
+      for (const group of groups) {
+        const existing = await db.get('SELECT * FROM groups WHERE id = ?', [group.id]);
+        if (existing) {
+          // Update existing group
+          await db.run(
+            `UPDATE groups SET name = ?, members = ?, subjectId = ?, description = ?, createdBy = ? WHERE id = ?`,
+            [group.name, JSON.stringify(group.members), group.subjectId, group.description, group.createdBy || userId, group.id]
+          );
+        } else {
+          // Insert new group
+          await db.run(
+            `INSERT INTO groups (id, name, members, subjectId, description, createdBy) VALUES (?, ?, ?, ?, ?, ?)`,
+            [group.id, group.name, JSON.stringify(group.members), group.subjectId, group.description, group.createdBy || userId]
+          );
+        }
+      }
+      console.log(`👥 Saved ${groups.length} groups to database`);
+    }
+
+    // Save user-specific data (notifications) to user_data table
     const existing = await db.get('SELECT * FROM user_data WHERE userId = ?', [userId]);
 
     if (existing) {
       await db.run(
-        `UPDATE user_data SET groupsJson = ?, notificationsJson = ?, chatHistoriesJson = ?, updatedAt = CURRENT_TIMESTAMP WHERE userId = ?`,
+        `UPDATE user_data SET notificationsJson = ?, chatHistoriesJson = ?, updatedAt = CURRENT_TIMESTAMP WHERE userId = ?`,
         [
-          JSON.stringify(groups),
           JSON.stringify(notifications),
           JSON.stringify(chatHistories),
           userId
@@ -306,7 +361,7 @@ app.post('/api/user/:userId/save', async (req, res) => {
         [
           userId,
           '[]', // Empty posts array - they go to global posts table
-          JSON.stringify(groups),
+          '[]', // Empty groups array - they go to global groups table
           JSON.stringify(notifications),
           JSON.stringify(chatHistories)
         ]
