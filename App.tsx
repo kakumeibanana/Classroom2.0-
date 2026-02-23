@@ -212,11 +212,10 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
     setShowGroupCreator(false);
   };
 
-  const toggleStudentSelection = (id: string) => {
-    setSelectedStudentIds(prev => 
-      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
-    );
-  };
+  // Calculate unread DM count
+  const unreadDMCount = Object.values(chatHistories).reduce((total, messages) => {
+    return total + messages.filter(m => !m.isRead && m.senderId !== activeUser.id).length;
+  }, 0);
 
   const navigateToPost = (subjectId: string, postId: string) => {
     dispatch({ type: 'SET_ACTIVE_TAB', payload: `subject-${subjectId}` });
@@ -467,6 +466,7 @@ const AppContent: React.FC<AppContentProps> = ({ teacher }) => {
           setActiveTab={(tab) => dispatch({ type: 'SET_ACTIVE_TAB', payload: tab })}
           isOpen={sidebarOpen}
           isTeacher={activeUser.role === 'teacher'}
+          unreadDMCount={unreadDMCount}
         />
 
         <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 lg:px-10 no-scrollbar scroll-smooth">

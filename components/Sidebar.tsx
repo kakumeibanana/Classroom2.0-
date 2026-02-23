@@ -8,9 +8,10 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   isOpen: boolean;
   isTeacher: boolean;
+  unreadDMCount?: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, isTeacher }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, isTeacher, unreadDMCount = 0 }) => {
   return (
     <aside className={`
       fixed lg:static top-16 left-0 h-[calc(100vh-4rem)] bg-white border-r border-gray-100 transition-all duration-300 z-30
@@ -37,10 +38,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, isTe
 
           <button
             onClick={() => setActiveTab('chat')}
-            className={`w-full flex items-center gap-4 px-4 py-3 rounded-r-full transition-all ${activeTab === 'chat' ? 'bg-blue-50 text-[#1a73e8]' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`w-full flex items-center gap-4 px-4 py-3 rounded-r-full transition-all relative ${activeTab === 'chat' ? 'bg-blue-50 text-[#1a73e8]' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <MessageCircle size={20} />
             <span className="font-bold text-sm">DM</span>
+            {unreadDMCount > 0 && (
+              <span className="ml-auto shrink-0 inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full">
+                {unreadDMCount}
+              </span>
+            )}
           </button>
 
           <button
